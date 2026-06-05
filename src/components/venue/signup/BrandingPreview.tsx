@@ -40,7 +40,6 @@ export default function BrandingPreview({
         <FieldPreview label="Plan" value={formatPlan(venue.billingPlan)} />
         <FieldPreview label="Billing" value="Plan selected" />
         <FieldPreview label="Platform status" value="Pending approval" />
-        <FieldPreview label="Guest visibility" value="Hidden until approved" />
       </div>
       {error ? (
         <p className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">

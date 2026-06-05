@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { startTransition, useActionState, useRef } from "react";
 import Panel from "@/components/shared/Panel";
 import StatusPill, { type StatusTone } from "@/components/shared/StatusPill";
+import SubmitButton from "@/components/shared/SubmitButton";
 import {
   handleScannerAction,
   initialScannerState,
@@ -115,13 +116,7 @@ function ActivationConfirmation({
           placeholder="Optional description for staff reference"
         />
       </label>
-      <button
-        className="w-full rounded-lg bg-foreground px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={pending}
-        type="submit"
-      >
-        Confirm activation
-      </button>
+      <SubmitButton disabled={pending}>Confirm activation</SubmitButton>
     </form>
   );
 }
@@ -142,32 +137,32 @@ function CheckoutConfirmation({
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         Confirm only after the guest has received the stored item.
       </div>
-      <button
-        className="w-full rounded-lg bg-foreground px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={pending}
-        type="submit"
-      >
-        Confirm checkout
-      </button>
+      <SubmitButton disabled={pending}>Confirm checkout</SubmitButton>
     </form>
   );
 }
 
 export default function ScannerFrame() {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const lookupFormRef = useRef<HTMLFormElement | null>(null);
   const [state, formAction, pending] = useActionState(
     handleScannerAction,
     initialScannerState,
   );
 
   function handleCameraDetection(value: string) {
-    if (!inputRef.current || !lookupFormRef.current) {
+    if (!inputRef.current) {
       return;
     }
 
     inputRef.current.value = value;
-    lookupFormRef.current.requestSubmit();
+
+    const formData = new FormData();
+    formData.set("_action", "lookup");
+    formData.set("lookupValue", value);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
 
   return (
@@ -177,7 +172,7 @@ export default function ScannerFrame() {
     >
       <CameraScanner disabled={pending} onDetected={handleCameraDetection} />
 
-      <form action={formAction} className="mt-4 space-y-3" ref={lookupFormRef}>
+      <form action={formAction} className="mt-4 space-y-3">
         <input name="_action" type="hidden" value="lookup" />
         <label className="block">
           <span className="text-sm font-medium text-foreground">
@@ -192,13 +187,7 @@ export default function ScannerFrame() {
             required
           />
         </label>
-        <button
-          className="w-full rounded-lg bg-brand px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={pending}
-          type="submit"
-        >
-          Verify ticket
-        </button>
+        <SubmitButton disabled={pending}>Verify ticket</SubmitButton>
       </form>
 
       {state.message ? (
