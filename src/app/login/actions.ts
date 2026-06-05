@@ -35,3 +35,12 @@ export async function signInWithPassword(formData: FormData) {
 
   redirect(nextPath);
 }
+
+export async function signOut() {
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+  }
+
+  redirect("/login");
+}

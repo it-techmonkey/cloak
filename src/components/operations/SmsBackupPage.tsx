@@ -5,7 +5,7 @@ import Panel from "@/components/shared/Panel";
 export default function SmsBackupPage() {
   return (
     <PageShell
-      activePath="/venuedashboard"
+      activePath="/smsbackup"
       eyebrow="Operations"
       title="SMS backup"
       description="Fallback lookup surface for manual ticket recovery. SMS sending remains a cost-controlled feature."

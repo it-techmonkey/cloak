@@ -8,6 +8,7 @@ export default function PageShell({
   title,
   description,
   actions,
+  headerMode,
 }: {
   activePath?: string;
   children: ReactNode;
@@ -15,10 +16,11 @@ export default function PageShell({
   title: string;
   description?: string;
   actions?: ReactNode;
+  headerMode?: "public" | "venue" | "admin";
 }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AppHeader activePath={activePath} />
+      <AppHeader activePath={activePath} mode={headerMode} />
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>

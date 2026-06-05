@@ -6,7 +6,7 @@ import ScanOutcomes from "./ScanOutcomes";
 export default function VenueScannerPage() {
   return (
     <div className="min-h-screen bg-night text-white">
-      <AppHeader activePath="/venuedashboard" />
+      <AppHeader activePath="/venuescanner" mode="venue" />
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div>

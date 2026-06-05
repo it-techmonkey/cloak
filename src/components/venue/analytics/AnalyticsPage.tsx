@@ -12,7 +12,7 @@ export default function AnalyticsPage({
 }) {
   return (
     <PageShell
-      activePath={venueOnly ? "/venuedashboard" : "/masterdashboard"}
+      activePath={venueOnly ? "/venueanalytics" : "/analytics"}
       eyebrow={venueOnly ? "Venue analytics" : "Platform analytics"}
       title={venueOnly ? data.venueLabel : "Platform performance"}
       description="Review guest volume, collection activity, storage duration, utilization, and item mix."

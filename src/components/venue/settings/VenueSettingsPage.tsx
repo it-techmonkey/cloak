@@ -16,7 +16,7 @@ export default function VenueSettingsPage({
 }) {
   return (
     <PageShell
-      activePath="/venuedashboard"
+      activePath="/venuesettings"
       eyebrow="Venue"
       title="Venue settings"
       description="Manage QR entry link, venue details, capacity, event naming, and active status."
