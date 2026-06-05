@@ -1,6 +1,7 @@
 import { signInWithPassword } from "@/app/login/actions";
 import Panel from "@/components/shared/Panel";
 import StatusPill from "@/components/shared/StatusPill";
+import SubmitButton from "@/components/shared/SubmitButton";
 
 export default function LoginPage({
   message,
@@ -43,12 +44,7 @@ export default function LoginPage({
                 type="password"
               />
             </label>
-            <button
-              className="rounded-lg bg-gradient-to-r from-brand to-brand-dark px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-              type="submit"
-            >
-              Sign in securely
-            </button>
+            <SubmitButton>Sign in securely</SubmitButton>
             {message ? <StatusPill tone="blue">{message}</StatusPill> : null}
           </form>
         </Panel>

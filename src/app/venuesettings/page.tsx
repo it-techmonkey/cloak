@@ -4,7 +4,16 @@ import { requireVenueAccess } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+type SearchParams = Promise<{
+  error?: string | string[];
+  message?: string | string[];
+}>;
+
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const guard = await requireVenueAccess("/venuesettings", ["manager"]);
 
   if (guard.status === "not_configured") {
@@ -16,5 +25,12 @@ export default async function Page() {
     );
   }
 
-  return <VenueSettingsPage />;
+  const params = await searchParams;
+
+  return (
+    <VenueSettingsPage
+      error={getParam(params.error)}
+      message={getParam(params.message)}
+    />
+  );
 }

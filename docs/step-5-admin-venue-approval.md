@@ -8,7 +8,7 @@ This step connects the platform admin dashboard to live Supabase venue data.
 - Venue review queue from Supabase.
 - Admin approval, rejection, and suspension actions.
 - Server-side platform admin checks inside every mutation.
-- Approval activates venues only when dummy billing is valid.
+- Approval activates venues only when sample billing is valid.
 - Rejected and suspended venues are set inactive.
 - Admin actions write to `audit_logs`.
 
@@ -24,7 +24,7 @@ Approving a venue sets:
 Approval is blocked unless:
 
 - `billing_status` is `trialing` or `active`
-- `stripe_customer_id` exists, currently stored as a dummy value
+- `stripe_customer_id` exists, currently stored as a sample value
 
 ## Guest Visibility
 

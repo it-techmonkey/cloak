@@ -48,6 +48,12 @@ a {
   text-decoration: none;
 }
 
+button:not(:disabled),
+a[href],
+summary {
+  cursor: pointer;
+}
+
 button,
 input,
 select,

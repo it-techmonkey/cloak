@@ -1,5 +1,6 @@
 import { selectVenuePlan } from "@/app/venuesignup/actions";
 import Panel from "@/components/shared/Panel";
+import SubmitButton from "@/components/shared/SubmitButton";
 import { venuePlans, type VenueSignupSummary } from "@/lib/venues";
 
 export default function PlanPreview({
@@ -33,12 +34,17 @@ export default function PlanPreview({
               <input name="plan" type="hidden" value={plan.id} />
               <p className="text-2xl font-semibold text-foreground">{plan.price}</p>
               <p className="text-sm leading-6 text-muted">{plan.description}</p>
-              <button
-                className="mt-auto rounded-lg bg-gradient-to-r from-brand to-brand-dark px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-                type="submit"
-              >
-                Select plan
-              </button>
+              <div className="space-y-2 text-sm text-muted">
+                {plan.features.map((feature) => (
+                  <div className="flex gap-2" key={feature}>
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                    <span>{feature}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-auto">
+                <SubmitButton>Select plan</SubmitButton>
+              </div>
             </form>
           </Panel>
         ))}

@@ -228,11 +228,13 @@ export type Database = {
           created_by: string | null;
           id: string;
           name: string;
+          postal_code: string | null;
           rejection_reason: string | null;
           slug: string;
           stripe_customer_id: string | null;
           stripe_price_id: string | null;
           stripe_subscription_id: string | null;
+          submitted_at: string | null;
           updated_at: string;
         };
         Insert: {
@@ -252,11 +254,13 @@ export type Database = {
           created_by?: string | null;
           id?: string;
           name: string;
+          postal_code?: string | null;
           rejection_reason?: string | null;
           slug: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;
           stripe_subscription_id?: string | null;
+          submitted_at?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -276,11 +280,13 @@ export type Database = {
           created_by?: string | null;
           id?: string;
           name?: string;
+          postal_code?: string | null;
           rejection_reason?: string | null;
           slug?: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;
           stripe_subscription_id?: string | null;
+          submitted_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];

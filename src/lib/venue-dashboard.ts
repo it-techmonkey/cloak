@@ -22,7 +22,7 @@ export type VenueTicketListItem = {
 export type VenueDashboardData = {
   activeFilter: TicketFilter;
   search: string;
-  stats: Array<{ label: string; value: string; tone: StatusTone }>;
+  stats: Array<{ helper?: string; label: string; value: string; tone: StatusTone }>;
   tickets: VenueTicketListItem[];
   venueLabel: string;
 };
@@ -66,12 +66,12 @@ function emptyVenueDashboardData(
     activeFilter,
     search,
     stats: [
-      { label: "Today", value: "0", tone: "neutral" },
-      { label: "Pending", value: "0", tone: "warning" },
-      { label: "Stored", value: "0", tone: "green" },
-      { label: "Collected", value: "0", tone: "blue" },
-      { label: "Forgotten", value: "0", tone: "danger" },
-      { label: "Capacity", value: "0%", tone: "blue" },
+      { helper: "Tickets created today", label: "Today", value: "0", tone: "neutral" },
+      { helper: "Waiting at counter", label: "Pending", value: "0", tone: "warning" },
+      { helper: "Currently stored", label: "Stored", value: "0", tone: "green" },
+      { helper: "Returned today", label: "Collected", value: "0", tone: "blue" },
+      { helper: "Expired before activation", label: "Forgotten", value: "0", tone: "danger" },
+      { helper: "Active storage use", label: "Capacity", value: "0%", tone: "blue" },
     ],
     tickets: [],
     venueLabel: "No assigned venue",
@@ -242,12 +242,13 @@ export async function getVenueDashboardData({
     activeFilter,
     search: normalizedSearch,
     stats: [
-      { label: "Today", value: formatCount(todayCount.count), tone: "neutral" },
-      { label: "Pending", value: formatCount(pendingCount.count), tone: "warning" },
-      { label: "Stored", value: formatCount(storedCount.count), tone: "green" },
-      { label: "Collected", value: formatCount(collectedCount.count), tone: "blue" },
-      { label: "Forgotten", value: formatCount(forgottenCount.count), tone: "danger" },
+      { helper: "Tickets created today", label: "Today", value: formatCount(todayCount.count), tone: "neutral" },
+      { helper: "Waiting at counter", label: "Pending", value: formatCount(pendingCount.count), tone: "warning" },
+      { helper: "Currently stored", label: "Stored", value: formatCount(storedCount.count), tone: "green" },
+      { helper: "Returned today", label: "Collected", value: formatCount(collectedCount.count), tone: "blue" },
+      { helper: "Expired before activation", label: "Forgotten", value: formatCount(forgottenCount.count), tone: "danger" },
       {
+        helper: "Active storage use",
         label: "Capacity",
         value: `${utilization}%`,
         tone: utilization >= 90 ? "danger" : utilization >= 70 ? "warning" : "blue",

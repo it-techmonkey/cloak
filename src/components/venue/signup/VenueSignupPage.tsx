@@ -21,7 +21,7 @@ export default function VenueSignupPage({
   const subtitles = {
     1: "Let's start with the basic details.",
     2: "Choose the plan that matches your operation.",
-    3: "Confirm the details before admin review.",
+    3: "Confirm the details before platform review.",
   };
 
   return (
@@ -51,7 +51,7 @@ export default function VenueSignupPage({
         <div className="mx-auto w-full max-w-4xl">
           {step === 1 ? <VenueDetailsPreview error={error} /> : null}
           {step === 2 ? <PlanPreview error={error} venue={venue ?? null} /> : null}
-          {step === 3 ? <BrandingPreview venue={venue ?? null} /> : null}
+          {step === 3 ? <BrandingPreview error={error} venue={venue ?? null} /> : null}
         </div>
       </main>
     </div>

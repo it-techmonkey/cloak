@@ -24,11 +24,11 @@ export default function VenuePendingApprovalPage({
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-brand to-brand-dark text-lg font-semibold text-white shadow-lg">
             CL
           </div>
-          <StatusPill tone="warning">Pending admin approval</StatusPill>
+          <StatusPill tone="warning">Pending platform approval</StatusPill>
           <h1 className="mt-4 text-3xl font-semibold text-foreground">Venue submitted</h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-            Your venue is registered, but guests will not be able to select it until the
-            platform admin approves the account.
+            Your venue and manager login are registered. Guests will be able to select the
+            venue after platform approval.
           </p>
         </div>
 
@@ -36,13 +36,13 @@ export default function VenuePendingApprovalPage({
           <div className="grid gap-4 sm:grid-cols-2">
             <FieldPreview label="Venue" value={venue?.name ?? "Submitted venue"} />
             <FieldPreview label="Plan" value={formatPlan(venue?.billingPlan)} />
-            <FieldPreview label="Billing" value="Dummy billing recorded" />
+            <FieldPreview label="Billing" value="Plan selected" />
             <FieldPreview label="Visibility" value="Hidden from guest form" />
-            <FieldPreview label="Review status" value="Waiting for admin" />
+            <FieldPreview label="Review status" value="Waiting for platform approval" />
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <SecondaryLink href="/">Back home</SecondaryLink>
-            <PrimaryLink href="/masterdashboard">Admin review</PrimaryLink>
+            <PrimaryLink href="/register-interest">Contact support</PrimaryLink>
           </div>
         </Panel>
       </main>

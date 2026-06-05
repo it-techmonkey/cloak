@@ -77,7 +77,7 @@ export async function requireVenueAccess(
   }
 
   if (context.profileRole === "platform_admin") {
-    return context;
+    redirect("/unauthorized");
   }
 
   const hasVenueRole = context.venueRoles.some((venueRole) =>

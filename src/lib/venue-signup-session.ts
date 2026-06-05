@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
+import type { VenuePlanId } from "@/lib/venues";
 
-const draftCookie = "cloak_venue_signup_id";
+const draftDataCookie = "cloak_venue_signup_draft";
 const submittedCookie = "cloak_venue_submitted_id";
 
 const cookieOptions = {
@@ -11,16 +12,39 @@ const cookieOptions = {
   secure: process.env.NODE_ENV === "production",
 };
 
-export async function getDraftVenueId() {
-  return (await cookies()).get(draftCookie)?.value;
+export type VenueSignupDraft = {
+  addressLine1: string;
+  addressLine2: string;
+  billingPlan?: VenuePlanId;
+  capacity: number;
+  city: string;
+  contactEmail: string;
+  contactPhone: string;
+  country: string;
+  postalCode: string;
+  venueName: string;
+};
+
+export async function getDraftVenueSignup(): Promise<VenueSignupDraft | null> {
+  const value = (await cookies()).get(draftDataCookie)?.value;
+
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(decodeURIComponent(value)) as VenueSignupDraft;
+  } catch {
+    return null;
+  }
 }
 
-export async function setDraftVenueId(venueId: string) {
-  (await cookies()).set(draftCookie, venueId, cookieOptions);
+export async function setDraftVenueSignup(draft: VenueSignupDraft) {
+  (await cookies()).set(draftDataCookie, encodeURIComponent(JSON.stringify(draft)), cookieOptions);
 }
 
-export async function clearDraftVenueId() {
-  (await cookies()).delete(draftCookie);
+export async function clearDraftVenueSignup() {
+  (await cookies()).delete(draftDataCookie);
 }
 
 export async function getSubmittedVenueId() {

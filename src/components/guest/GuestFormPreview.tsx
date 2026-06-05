@@ -1,5 +1,6 @@
 import { createGuestTicket } from "@/app/customer-signup/actions";
 import Panel from "@/components/shared/Panel";
+import SubmitButton from "@/components/shared/SubmitButton";
 import type { PublicVenueOption } from "@/lib/tickets";
 
 const inputClass =
@@ -80,13 +81,7 @@ export default function GuestFormPreview({
           </p>
         ) : null}
 
-        <button
-          className="rounded-lg bg-gradient-to-r from-brand to-brand-dark px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!hasVenues}
-          type="submit"
-        >
-          Get digital ticket
-        </button>
+        <SubmitButton disabled={!hasVenues}>Get digital ticket</SubmitButton>
 
         <p className="text-center text-xs leading-5 text-muted">
           By continuing, you agree to receive a venue-bound digital cloakroom ticket.

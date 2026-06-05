@@ -59,6 +59,13 @@ function filterHref(filter: TicketFilter, search: string) {
   return query ? `/venuedashboard?${query}` : "/venuedashboard";
 }
 
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export default function TodayTickets({ data }: { data: VenueDashboardData }) {
   return (
     <Panel
@@ -107,23 +114,37 @@ export default function TodayTickets({ data }: { data: VenueDashboardData }) {
           No tickets match the current view.
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="overflow-hidden rounded-lg border border-line">
+          <div className="hidden grid-cols-[1.1fr_0.85fr_0.9fr_0.65fr_auto] gap-3 border-b border-line bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-muted lg:grid">
+            <span>Guest</span>
+            <span>Ticket</span>
+            <span>Item</span>
+            <span>Created</span>
+            <span>Status</span>
+          </div>
           {data.tickets.map((ticket) => (
             <Link
-              className="flex flex-col gap-3 rounded-md border border-line p-4 transition hover:border-brand hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
+              className="grid gap-3 border-b border-line p-4 transition last:border-b-0 hover:bg-slate-50 lg:grid-cols-[1.1fr_0.85fr_0.9fr_0.65fr_auto] lg:items-center"
               href={`/venueticketdetail?id=${ticket.id}`}
               key={ticket.id}
             >
               <div>
                 <p className="text-sm font-medium text-foreground">{ticket.guestName}</p>
-                <p className="mt-1 text-sm text-muted">
-                  {ticket.publicCode} - {ticket.venueName}
+                <p className="mt-1 text-xs text-muted">{ticket.guestPhone}</p>
+              </div>
+              <div>
+                <p className="font-mono text-sm font-semibold text-foreground">{ticket.publicCode}</p>
+                <p className="mt-1 text-xs text-muted">{ticket.venueName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-foreground">
+                  {ticket.itemType ? `${ticket.itemCount} x ${ticket.itemType}` : "Pending"}
                 </p>
                 <p className="mt-1 text-xs text-muted">
-                  {ticket.itemType ? `${ticket.itemCount} x ${ticket.itemType}` : "Item details pending"}
-                  {ticket.storageLocation ? ` - ${ticket.storageLocation}` : ""}
+                  {ticket.storageLocation ?? "No location yet"}
                 </p>
               </div>
+              <p className="text-sm text-muted">{formatTime(ticket.createdAt)}</p>
               <StatusPill tone={statusTone(ticket.status)}>{statusCopy(ticket.status)}</StatusPill>
             </Link>
           ))}

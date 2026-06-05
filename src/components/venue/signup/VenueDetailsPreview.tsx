@@ -1,5 +1,7 @@
 import { createVenueSignup } from "@/app/venuesignup/actions";
 import Panel from "@/components/shared/Panel";
+import SubmitButton from "@/components/shared/SubmitButton";
+import UkAddressFields from "./UkAddressFields";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15";
@@ -8,7 +10,7 @@ export default function VenueDetailsPreview({ error }: { error?: string }) {
   return (
     <Panel
       title="Venue details"
-      description="Provide the operational details for admin review."
+      description="Provide the operational details for platform review."
     >
       <form action={createVenueSignup} className="grid gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -20,18 +22,7 @@ export default function VenueDetailsPreview({ error }: { error?: string }) {
             Capacity
             <input className={inputClass} min={1} name="capacity" placeholder="100" required type="number" />
           </label>
-          <label className="grid gap-2 text-sm font-medium text-foreground sm:col-span-2">
-            Address
-            <input className={inputClass} name="address" placeholder="Street address" />
-          </label>
-          <label className="grid gap-2 text-sm font-medium text-foreground">
-            City
-            <input className={inputClass} name="city" placeholder="City" required />
-          </label>
-          <label className="grid gap-2 text-sm font-medium text-foreground">
-            Country
-            <input className={inputClass} name="country" placeholder="Country" required />
-          </label>
+          <UkAddressFields />
           <label className="grid gap-2 text-sm font-medium text-foreground">
             Manager email
             <input className={inputClass} name="contactEmail" placeholder="manager@example.com" required type="email" />
@@ -48,12 +39,7 @@ export default function VenueDetailsPreview({ error }: { error?: string }) {
           </p>
         ) : null}
 
-        <button
-          className="rounded-lg bg-gradient-to-r from-brand to-brand-dark px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-          type="submit"
-        >
-          Continue
-        </button>
+        <SubmitButton>Continue</SubmitButton>
       </form>
     </Panel>
   );

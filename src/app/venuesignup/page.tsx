@@ -1,6 +1,6 @@
 import VenueSignupPage from "@/components/venue/signup/VenueSignupPage";
-import { getDraftVenueId } from "@/lib/venue-signup-session";
-import { getVenueSignupSummary } from "@/lib/venues";
+import { getDraftVenueSignup } from "@/lib/venue-signup-session";
+import type { VenueSignupSummary } from "@/lib/venues";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,16 @@ function getParam(value: string | string[] | undefined) {
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const venue = await getVenueSignupSummary(await getDraftVenueId());
+  const draft = await getDraftVenueSignup();
+  const venue: VenueSignupSummary | null = draft
+    ? {
+        billingPlan: draft.billingPlan ?? null,
+        billingStatus: draft.billingPlan ? "trialing" : "not_started",
+        city: draft.city,
+        contactEmail: draft.contactEmail,
+        name: draft.venueName,
+      }
+    : null;
   const step = !venue ? 1 : venue.billingPlan ? 3 : 2;
 
   return <VenueSignupPage error={getParam(params.error)} step={step} venue={venue} />;

@@ -8,7 +8,7 @@ Use this guide to verify the functional MVP before showing it to the client and 
 - Supabase migrations are applied.
 - A platform admin account exists.
 - At least one venue can be signed up and approved.
-- Use Stripe dummy billing for this demo build.
+- Use sample billing status for this demo build.
 - Test camera scanning from `localhost` or an HTTPS URL.
 
 Run these checks:
@@ -42,6 +42,19 @@ Expected result:
 - The user can sign in at `/login`.
 - The user can access `/masterdashboard`.
 
+## 2.1 Venue Account Model
+
+Venue signup creates the manager login only when the final registration is submitted.
+
+Current behavior:
+
+- Steps 1 and 2 are saved as a local secure draft only.
+- No venue row is created until the final review step is submitted.
+- The final review step collects the manager password.
+- Final submit creates the manager account, venue submission, and manager venue role.
+- Guests cannot select the venue until platform approval.
+- Managers can create venue staff accounts from venue settings after login.
+
 ## 3. Start The App
 
 ```bash
@@ -65,15 +78,17 @@ Route:
 Test:
 
 - Fill venue details.
-- Select a dummy billing plan.
+- Select a sample billing plan.
 - Submit the signup.
 
 Expected:
 
 - Venue is created with `approval_status = pending`.
-- Venue has dummy billing fields.
+- Venue has sample billing fields.
 - Venue is not visible to guests yet.
 - User sees a professional pending approval state.
+- Clicking Step 1 repeatedly should not create venue rows.
+- Duplicate completed pending submissions from the same manager email are blocked within a 24-hour window.
 
 Client feedback to capture:
 
@@ -323,7 +338,7 @@ Client feedback to capture:
 
 ## 13. Known Post-Feedback Work
 
-- Replace dummy billing with Stripe Checkout and webhooks.
+- Replace sample billing with Stripe Checkout and webhooks.
 - Add Resend email notifications.
 - Decide whether SMS is required.
 - Run full responsive and accessibility review.

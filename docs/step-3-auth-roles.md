@@ -42,4 +42,4 @@ If guests need a reusable account later, we can add an optional account creation
 - Add a temporary `SUPABASE_DB_URL` in `.env.local` when applying migrations from this machine.
 - Configure Supabase Auth password policy and allowed redirect URLs.
 - Create the first platform admin profile.
-- Step 4 connects venue signup to Supabase with dummy billing until payment integration is approved.
+- Step 4 connects venue signup to Supabase with sample billing until payment integration is approved.

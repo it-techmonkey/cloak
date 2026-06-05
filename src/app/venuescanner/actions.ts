@@ -76,10 +76,6 @@ async function getScannerContext() {
 }
 
 function canAccessVenue(guard: AuthorizedContext, venueId: string) {
-  if (guard.profileRole === "platform_admin") {
-    return true;
-  }
-
   return guard.venueRoles.some((venueRole) => venueRole.venueId === venueId);
 }
 
