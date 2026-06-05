@@ -54,7 +54,7 @@ function CustomerFooter() {
         <div>
           <p className="font-semibold text-foreground">Cloak</p>
           <p className="mt-2 max-w-xl leading-6 text-muted">
-            A digital cloakroom pass for guests at approved venues.
+            QR-based digital cloakroom passes for guests at approved venues — no paper, no disputes.
           </p>
         </div>
         <div className="flex flex-wrap gap-4 text-muted">
@@ -65,7 +65,7 @@ function CustomerFooter() {
             Staff login
           </Link>
           <Link className="hover:text-foreground" href="/register-interest">
-            Contact
+            Register interest
           </Link>
         </div>
       </div>

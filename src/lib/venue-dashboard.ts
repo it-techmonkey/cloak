@@ -410,7 +410,7 @@ export async function getVenueAnalyticsData(
       {
         label: "Utilization",
         value: `${utilization}%`,
-        tone: utilization >= 90 ? "danger" : utilization >= 70 ? "warning" : "warning",
+        tone: utilization >= 90 ? "danger" : utilization >= 70 ? "warning" : "blue",
       },
     ],
     venueLabel: venueMeta.label,

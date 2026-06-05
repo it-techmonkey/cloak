@@ -14,14 +14,16 @@ export default function LoginPage({
     <div className="min-h-screen bg-[#eef3fa] text-foreground">
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-8">
         <div className="mb-6 text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-brand to-brand-dark text-lg font-semibold text-white shadow-lg">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-br from-brand to-brand-dark text-lg font-semibold text-white shadow-lg">
             CL
           </div>
           <h1 className="mt-4 text-3xl font-semibold">Sign in</h1>
-          <p className="mt-2 text-sm text-muted">Access your Cloak operations workspace.</p>
+          <p className="mt-2 text-sm text-muted">
+            Sign in to access your venue operations workspace.
+          </p>
         </div>
 
-        <Panel title="Account sign in">
+        <Panel title="Staff and manager sign in">
           <form action={signInWithPassword} className="grid gap-4">
             <input name="next" type="hidden" value={nextPath} />
             <label className="grid gap-2 text-sm font-medium text-foreground">

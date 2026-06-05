@@ -57,7 +57,7 @@ export default function AppHeader({
           className="flex items-center gap-3"
           href={resolvedMode === "admin" ? "/masterdashboard" : resolvedMode === "venue" ? "/venuedashboard" : "/"}
         >
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-dark text-sm font-semibold text-white shadow-sm">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-sm font-semibold text-white shadow-sm">
             CL
           </span>
           <span>

@@ -41,7 +41,7 @@ export default function VenueSignupPage({
         </div>
 
         <div className="flex flex-col items-center text-center">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-brand to-brand-dark text-lg font-semibold text-white shadow-lg">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-br from-brand to-brand-dark text-lg font-semibold text-white shadow-lg">
             CL
           </div>
           <h1 className="mt-4 text-3xl font-semibold text-foreground">{titles[step]}</h1>

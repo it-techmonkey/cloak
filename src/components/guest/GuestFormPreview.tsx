@@ -84,7 +84,7 @@ export default function GuestFormPreview({
         <SubmitButton disabled={!hasVenues}>Get digital ticket</SubmitButton>
 
         <p className="text-center text-xs leading-5 text-muted">
-          By continuing, you agree to receive a venue-bound digital cloakroom ticket.
+          Your details are used to create a cloakroom pass for this visit only.
         </p>
       </form>
     </Panel>

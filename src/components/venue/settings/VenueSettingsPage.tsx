@@ -19,7 +19,7 @@ export default function VenueSettingsPage({
       activePath="/venuesettings"
       eyebrow="Venue"
       title="Venue settings"
-      description="Manage QR entry link, venue details, capacity, event naming, and active status."
+      description="Manage your venue QR entry link, review venue details, and create staff accounts for counter operations."
     >
       {message ? (
         <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
@@ -50,7 +50,7 @@ export default function VenueSettingsPage({
         </Panel>
         <Panel
           title="Staff accounts"
-          description="Create staff logins for counter scanning and ticket handling."
+          description="Create a login for each counter staff member. Staff can scan tickets and handle activation and collection."
         >
           <form action={createVenueStaffAccount} className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">

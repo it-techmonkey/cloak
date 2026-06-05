@@ -27,18 +27,18 @@ export default function MasterDashboardPage({
       ) : null}
       <StatusList items={data.stats} />
       <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <Panel title="Review standard">
+        <Panel title="Review checklist">
           <div className="grid gap-3 text-sm text-muted">
-            <AdminChecklistItem text="Confirm venue identity, manager contact, and location details." />
-            <AdminChecklistItem text="Approve only when plan and billing readiness are valid." />
-            <AdminChecklistItem text="Rejected or suspended venues stay hidden from guest check-in." />
+            <AdminChecklistItem text="Confirm venue name, manager contact details, and physical location." />
+            <AdminChecklistItem text="Verify the selected operating plan is appropriate for the venue's scale." />
+            <AdminChecklistItem text="Rejected and suspended venues remain invisible to guests immediately." />
           </div>
         </Panel>
         <Panel title="Operational notes">
           <div className="grid gap-3 sm:grid-cols-3">
-            <AdminNote label="Guest access" value="Only approved active venues are selectable." />
-            <AdminNote label="Venue access" value="Managers and staff use venue workspaces." />
-            <AdminNote label="Billing" value="Stripe replaces sample billing after approval." />
+            <AdminNote label="Guest access" value="Only approved, active venues appear in the guest check-in form." />
+            <AdminNote label="Venue workspace" value="Managers and staff access operations via their dedicated workspace." />
+            <AdminNote label="Approval effect" value="Approving a venue immediately enables guest check-in for that location." />
           </div>
         </Panel>
       </div>

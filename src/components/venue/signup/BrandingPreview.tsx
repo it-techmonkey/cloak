@@ -32,7 +32,7 @@ export default function BrandingPreview({
   return (
     <Panel
       title="Submission review"
-      description="Review the registration and create the venue manager login before platform review."
+      description="Review your registration details and set the manager account password. Platform review typically completes within one business day."
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <FieldPreview label="Venue" value={venue.name} />
