@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireVenueAccess, type AuthorizedContext } from "@/lib/auth/guards";
+import type { AuthorizedContext } from "@/lib/auth/guards";
 import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { hashTicketToken } from "@/lib/tickets";
 
@@ -63,9 +64,36 @@ function readField(formData: FormData, key: string) {
 }
 
 async function getScannerContext() {
-  const guard = await requireVenueAccess("/venuescanner");
+  if (!isSupabaseConfigured() || !isSupabaseAdminConfigured()) {
+    return null;
+  }
 
-  if (guard.status !== "authorized" || !isSupabaseAdminConfigured()) {
+  const authClient = await createClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const [{ data: profile }, { data: venueRoles }] = await Promise.all([
+    authClient.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+    authClient.from("venue_staff").select("venue_id, role").eq("profile_id", user.id),
+  ]);
+
+  const guard: AuthorizedContext = {
+    profileRole: profile?.role ?? "guest",
+    status: "authorized",
+    userId: user.id,
+    venueRoles:
+      venueRoles?.map((venueRole) => ({
+        role: venueRole.role,
+        venueId: venueRole.venue_id,
+      })) ?? [],
+  };
+
+  if (guard.profileRole === "platform_admin" || guard.venueRoles.length === 0) {
     return null;
   }
 
@@ -185,14 +213,42 @@ async function writeRejectedScan({
 }) {
   const supabase = createAdminClient();
 
-  await supabase.from("ticket_scans").insert({
-    reason,
-    result: "rejected",
-    scan_type: "rejected",
-    scanned_by: scanner.userId,
-    ticket_id: ticket.id,
-    venue_id: ticket.venue_id,
-  });
+  try {
+    await supabase.from("ticket_scans").insert({
+      reason,
+      result: "rejected",
+      scan_type: "rejected",
+      scanned_by: scanner.userId,
+      ticket_id: ticket.id,
+      venue_id: ticket.venue_id,
+    });
+  } catch {
+    // Scan rejection logging should not break the counter workflow.
+  }
+}
+
+async function writeAcceptedScan({
+  scanType,
+  scanner,
+  ticket,
+}: {
+  scanType: "activation" | "checkout";
+  scanner: AuthorizedContext;
+  ticket: TicketRow;
+}) {
+  const supabase = createAdminClient();
+
+  try {
+    await supabase.from("ticket_scans").insert({
+      result: "accepted",
+      scan_type: scanType,
+      scanned_by: scanner.userId,
+      ticket_id: ticket.id,
+      venue_id: ticket.venue_id,
+    });
+  } catch {
+    // Scan logging should not block an already validated ticket update.
+  }
 }
 
 function ticketReadyState(ticket: TicketRow, venueName: string): ScannerState {
@@ -226,7 +282,10 @@ async function handleLookup(formData: FormData): Promise<ScannerState> {
   const lookupValue = readField(formData, "lookupValue");
 
   if (!context) {
-    return { message: "Scanner access is temporarily unavailable.", status: "error" };
+    return {
+      message: "Sign in with a venue manager or staff account assigned to this venue.",
+      status: "error",
+    };
   }
 
   if (!lookupValue) {
@@ -293,7 +352,10 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
   const itemCount = Number(readField(formData, "itemCount") || "1");
 
   if (!context) {
-    return { message: "Scanner access is temporarily unavailable.", status: "error" };
+    return {
+      message: "Sign in with a venue manager or staff account assigned to this venue.",
+      status: "error",
+    };
   }
 
   const ticket = await loadTicketById(context.supabase, ticketId);
@@ -357,12 +419,10 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
     return { message: "Ticket activation failed. Please refresh and try again.", status: "error" };
   }
 
-  await context.supabase.from("ticket_scans").insert({
-    result: "accepted",
-    scan_type: "activation",
-    scanned_by: context.guard.userId,
-    ticket_id: ticket.id,
-    venue_id: ticket.venue_id,
+  await writeAcceptedScan({
+    scanType: "activation",
+    scanner: context.guard,
+    ticket,
   });
 
   revalidatePath("/venuescanner");
@@ -380,7 +440,10 @@ async function handleCheckout(formData: FormData): Promise<ScannerState> {
   const ticketId = readField(formData, "ticketId");
 
   if (!context) {
-    return { message: "Scanner access is temporarily unavailable.", status: "error" };
+    return {
+      message: "Sign in with a venue manager or staff account assigned to this venue.",
+      status: "error",
+    };
   }
 
   const ticket = await loadTicketById(context.supabase, ticketId);
@@ -427,12 +490,10 @@ async function handleCheckout(formData: FormData): Promise<ScannerState> {
       .eq("id", ticket.assigned_slot_id);
   }
 
-  await context.supabase.from("ticket_scans").insert({
-    result: "accepted",
-    scan_type: "checkout",
-    scanned_by: context.guard.userId,
-    ticket_id: ticket.id,
-    venue_id: ticket.venue_id,
+  await writeAcceptedScan({
+    scanType: "checkout",
+    scanner: context.guard,
+    ticket,
   });
 
   revalidatePath("/venuescanner");
@@ -449,15 +510,22 @@ export async function handleScannerAction(
   _previousState: ScannerState,
   formData: FormData,
 ): Promise<ScannerState> {
-  const action = readField(formData, "_action");
+  try {
+    const action = readField(formData, "_action");
 
-  if (action === "activate") {
-    return handleActivation(formData);
+    if (action === "activate") {
+      return handleActivation(formData);
+    }
+
+    if (action === "checkout") {
+      return handleCheckout(formData);
+    }
+
+    return handleLookup(formData);
+  } catch {
+    return {
+      message: "The scanner could not complete this request. Please refresh and try again.",
+      status: "error",
+    };
   }
-
-  if (action === "checkout") {
-    return handleCheckout(formData);
-  }
-
-  return handleLookup(formData);
 }
