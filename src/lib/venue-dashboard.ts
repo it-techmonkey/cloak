@@ -40,9 +40,17 @@ export type VenueInfo = {
   slug: string;
 };
 
+export type UserProfile = {
+  email: string;
+  fullName: string | null;
+  id: string;
+  phone: string | null;
+};
+
 export type VenueDashboardData = {
   activeFilter: TicketFilter;
   isManager: boolean;
+  profile: UserProfile | null;
   search: string;
   staff: VenueStaffMember[];
   stats: Array<{ helper?: string; label: string; value: string; tone: StatusTone }>;
@@ -99,10 +107,23 @@ function emptyVenueDashboardData(
       { helper: "Expired before activation", label: "Forgotten", value: "0", tone: "danger" },
       { helper: "Active storage use", label: "Capacity", value: "0%", tone: "blue" },
     ],
+    profile: null,
     tickets: [],
     venue: null,
     venueLabel: "No assigned venue",
   };
+}
+
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  if (!isSupabaseAdminConfigured()) return null;
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, phone")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!data) return null;
+  return { email: data.email, fullName: data.full_name, id: data.id, phone: data.phone };
 }
 
 function emptyAnalyticsData(): VenueAnalyticsData {
@@ -254,9 +275,10 @@ export async function getVenueDashboardData({
 
   const supabase = createAdminClient();
   const todayStart = getTodayStart();
-  const [venueMeta, staffList] = await Promise.all([
+  const [venueMeta, staffList, profileRow] = await Promise.all([
     getVenueMeta(supabase, venueIds),
     isManagerContext(context) ? getStaffList(supabase, venueIds) : Promise.resolve([]),
+    supabase.from("profiles").select("id, email, full_name, phone").eq("id", context.userId).maybeSingle(),
   ]);
 
   const scopedCount = () => {
@@ -300,9 +322,14 @@ export async function getVenueDashboardData({
     [...new Set(ticketRows.data?.map((t) => t.venue_id) ?? [])],
   );
 
+  const profile = profileRow.data
+    ? { email: profileRow.data.email, fullName: profileRow.data.full_name, id: profileRow.data.id, phone: profileRow.data.phone }
+    : null;
+
   return {
     activeFilter,
     isManager: isManagerContext(context),
+    profile,
     search: normalizedSearch,
     staff: staffList,
     stats: [

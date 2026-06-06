@@ -26,6 +26,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     <VenueSettingsPage
       error={params.error}
       message={params.message}
+      profile={data.profile}
       staff={data.staff}
       venue={data.venue}
     />

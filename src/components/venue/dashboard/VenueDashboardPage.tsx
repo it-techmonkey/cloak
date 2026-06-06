@@ -62,6 +62,8 @@ function StaffDashboard({ data }: { data: VenueDashboardData }) {
 
 function ManagerDashboard({ data }: { data: VenueDashboardData }) {
   const pendingCount = Number(data.stats.find((s) => s.label === "Pending")?.value ?? 0);
+  const storedCount = Number(data.stats.find((s) => s.label === "Stored")?.value ?? 0);
+  const capacity = data.venue?.capacity ?? 0;
 
   return (
     <PageShell
@@ -79,11 +81,35 @@ function ManagerDashboard({ data }: { data: VenueDashboardData }) {
     >
       <PendingAlert count={pendingCount} />
       <VenueStats stats={data.stats} />
+      {capacity > 0 && <CapacityBar used={storedCount} total={capacity} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
         <TodayTickets data={data} />
         <StaffRoster staff={data.staff} />
       </div>
     </PageShell>
+  );
+}
+
+function CapacityBar({ used, total }: { used: number; total: number }) {
+  const pct = Math.min(Math.round((used / total) * 100), 100);
+  const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500";
+
+  return (
+    <div className="rounded-xl border border-line bg-panel px-5 py-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-foreground">Cloak slots in use</span>
+        <span className="tabular-nums text-muted">
+          {used} / {total}
+        </span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={`h-full rounded-full transition-all ${color}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs text-muted">{total - used} slots available</p>
+    </div>
   );
 }
 
