@@ -1,17 +1,11 @@
 import AuthStatePage from "@/components/auth/AuthStatePage";
 import VenueSettingsPage from "@/components/venue/settings/VenueSettingsPage";
 import { requireVenueAccess } from "@/lib/auth/guards";
+import { getVenueDashboardData } from "@/lib/venue-dashboard";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{
-  error?: string | string[];
-  message?: string | string[];
-}>;
-
-function getParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
+type SearchParams = Promise<{ error?: string; message?: string }>;
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const guard = await requireVenueAccess("/venuesettings", ["manager"]);
@@ -20,17 +14,20 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     return (
       <AuthStatePage
         title="Supabase is not configured"
-        description="Add Supabase environment variables before managing venue settings."
+        description="Add Supabase environment variables to use venue settings."
       />
     );
   }
 
   const params = await searchParams;
+  const data = await getVenueDashboardData({ context: guard });
 
   return (
     <VenueSettingsPage
-      error={getParam(params.error)}
-      message={getParam(params.message)}
+      error={params.error}
+      message={params.message}
+      staff={data.staff}
+      venue={data.venue}
     />
   );
 }

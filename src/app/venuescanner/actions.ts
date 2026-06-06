@@ -6,58 +6,10 @@ import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/adm
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { hashTicketToken } from "@/lib/tickets";
+import type { ScannerState, ScannerTicket } from "./types";
 
 type TicketRow = Database["public"]["Tables"]["tickets"]["Row"];
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
-
-export type ScannerTicket = {
-  expiresAt: string;
-  guestEmail: string;
-  guestName: string;
-  guestPhone: string;
-  id: string;
-  itemCount: number;
-  itemDescription: string | null;
-  itemType: string | null;
-  publicCode: string;
-  status: TicketRow["status"];
-  storageLocation: string | null;
-  venueId: string;
-  venueName: string;
-};
-
-export type ScannerState =
-  | {
-      message: "";
-      status: "idle";
-    }
-  | {
-      message: string;
-      status: "error";
-      ticket?: ScannerTicket;
-    }
-  | {
-      message: string;
-      status: "success";
-      ticket?: ScannerTicket;
-    }
-  | {
-      intent: "activation";
-      message: string;
-      status: "ready";
-      ticket: ScannerTicket;
-    }
-  | {
-      intent: "checkout";
-      message: string;
-      status: "ready";
-      ticket: ScannerTicket;
-    };
-
-export const initialScannerState: ScannerState = {
-  message: "",
-  status: "idle",
-};
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();

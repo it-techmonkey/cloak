@@ -15,8 +15,8 @@ export default function SubmitButton({
   return (
     <button
       aria-busy={pending}
-      className={`inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-brand to-brand-dark px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-80 ${
-        pending ? "disabled:cursor-wait" : "disabled:cursor-not-allowed"
+      className={`inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 ${
+        pending ? "cursor-wait" : "disabled:cursor-not-allowed"
       }`}
       disabled={isDisabled}
       type="submit"

@@ -44,9 +44,10 @@ export default function VenueTicketDetailPage({ ticket }: { ticket: VenueTicketD
   if (!ticket) {
     return (
       <PageShell
-        activePath="/venuedashboard"
+        activePath="/venueticketdetail"
         eyebrow="Ticket detail"
         title="Ticket not found"
+        venueRole="manager"
         description="The ticket may not exist, or it may belong to another venue."
         actions={<SecondaryLink href="/venuedashboard">Back to dashboard</SecondaryLink>}
       >
@@ -61,9 +62,10 @@ export default function VenueTicketDetailPage({ ticket }: { ticket: VenueTicketD
 
   return (
     <PageShell
-      activePath="/venuedashboard"
+      activePath="/venueticketdetail"
       eyebrow="Ticket detail"
       title={ticket.publicCode}
+      venueRole="manager"
       description="Inspect guest details, storage information, and scan history."
       actions={
         <>

@@ -1,18 +1,11 @@
 import AuthStatePage from "@/components/auth/AuthStatePage";
 import VenueDashboardPage from "@/components/venue/dashboard/VenueDashboardPage";
 import { requireVenueAccess } from "@/lib/auth/guards";
-import { getVenueDashboardData } from "@/lib/venue-dashboard";
+import { getVenueDashboardData, normalizeTicketFilter } from "@/lib/venue-dashboard";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{
-  filter?: string | string[];
-  q?: string | string[];
-}>;
-
-function getParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
+type SearchParams = Promise<{ filter?: string; q?: string }>;
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const guard = await requireVenueAccess("/venuedashboard");
@@ -21,7 +14,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     return (
       <AuthStatePage
         title="Supabase is not configured"
-        description="Add Supabase environment variables before using venue operations."
+        description="Add Supabase environment variables to use the venue dashboard."
       />
     );
   }
@@ -29,8 +22,8 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   const params = await searchParams;
   const data = await getVenueDashboardData({
     context: guard,
-    filter: getParam(params.filter),
-    search: getParam(params.q),
+    filter: normalizeTicketFilter(params.filter),
+    search: params.q,
   });
 
   return <VenueDashboardPage data={data} />;

@@ -4,12 +4,8 @@ import { startTransition, useActionState, useEffect, useRef } from "react";
 import Panel from "@/components/shared/Panel";
 import StatusPill, { type StatusTone } from "@/components/shared/StatusPill";
 import SubmitButton from "@/components/shared/SubmitButton";
-import {
-  handleScannerAction,
-  initialScannerState,
-  type ScannerState,
-  type ScannerTicket,
-} from "@/app/venuescanner/actions";
+import { handleScannerAction } from "@/app/venuescanner/actions";
+import { initialScannerState, type ScannerState, type ScannerTicket } from "@/app/venuescanner/types";
 import CameraScanner from "./CameraScanner";
 
 const ITEM_TYPES = [

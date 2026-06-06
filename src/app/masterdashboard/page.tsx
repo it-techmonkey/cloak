@@ -5,13 +5,7 @@ import { getAdminDashboardData } from "@/lib/admin-dashboard";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{
-  message?: string | string[];
-}>;
-
-function getParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
+type SearchParams = Promise<{ message?: string }>;
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const guard = await requirePlatformAdmin("/masterdashboard");
@@ -20,12 +14,13 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     return (
       <AuthStatePage
         title="Supabase is not configured"
-        description="Add Supabase environment variables before using the platform admin dashboard."
+        description="Add Supabase environment variables to use the admin dashboard."
       />
     );
   }
 
-  const [params, data] = await Promise.all([searchParams, getAdminDashboardData()]);
+  const params = await searchParams;
+  const data = await getAdminDashboardData();
 
-  return <MasterDashboardPage data={data} message={getParam(params.message)} />;
+  return <MasterDashboardPage data={data} message={params.message} />;
 }

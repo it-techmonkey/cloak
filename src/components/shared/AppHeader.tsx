@@ -1,30 +1,28 @@
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
 
-type HeaderMode = "public" | "venue" | "admin";
+type HeaderMode = "public" | "venue-staff" | "venue-manager" | "admin";
 
 const navItems: Record<HeaderMode, Array<{ href: string; label: string }>> = {
   admin: [
     { href: "/masterdashboard", label: "Overview" },
     { href: "/analytics", label: "Analytics" },
   ],
-  public: [
-    { href: "/", label: "Home" },
-    { href: "/customer-signup", label: "Check in" },
-  ],
-  venue: [
+  "venue-manager": [
     { href: "/venuedashboard", label: "Dashboard" },
     { href: "/venuescanner", label: "Scanner" },
     { href: "/venueanalytics", label: "Analytics" },
     { href: "/venuesettings", label: "Settings" },
   ],
+  "venue-staff": [
+    { href: "/venuedashboard", label: "Dashboard" },
+    { href: "/venuescanner", label: "Scanner" },
+  ],
+  public: [],
 };
 
-function getMode(activePath?: string): HeaderMode {
-  if (activePath === "/masterdashboard" || activePath === "/analytics") {
-    return "admin";
-  }
-
+function resolveMode(activePath?: string, venueRole?: "staff" | "manager"): HeaderMode {
+  if (activePath === "/masterdashboard" || activePath === "/analytics") return "admin";
   if (
     activePath === "/venuedashboard" ||
     activePath === "/venuescanner" ||
@@ -33,47 +31,45 @@ function getMode(activePath?: string): HeaderMode {
     activePath === "/smsbackup" ||
     activePath === "/venueticketdetail"
   ) {
-    return "venue";
+    return venueRole === "manager" ? "venue-manager" : "venue-staff";
   }
-
   return "public";
 }
 
 export default function AppHeader({
   activePath,
-  mode,
+  venueRole,
 }: {
   activePath?: string;
-  mode?: HeaderMode;
+  venueRole?: "staff" | "manager";
 }) {
-  const resolvedMode = mode ?? getMode(activePath);
-  const items = navItems[resolvedMode];
-  const isWorkspace = resolvedMode !== "public";
+  const mode = resolveMode(activePath, venueRole);
+  const items = navItems[mode];
+  const isWorkspace = mode !== "public";
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-panel/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        {/* Logo */}
         <Link
-          className="flex items-center gap-3"
-          href={resolvedMode === "admin" ? "/masterdashboard" : resolvedMode === "venue" ? "/venuedashboard" : "/"}
+          className="flex shrink-0 items-center gap-2.5"
+          href={
+            mode === "admin"
+              ? "/masterdashboard"
+              : mode === "venue-manager" || mode === "venue-staff"
+                ? "/venuedashboard"
+                : "/"
+          }
         >
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-sm font-semibold text-white shadow-sm">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-brand to-brand-dark text-xs font-bold text-white">
             CL
           </span>
-          <span>
-            <span className="block text-sm font-semibold text-foreground">Cloak</span>
-            <span className="block text-xs text-muted">
-              {resolvedMode === "admin"
-                ? "Platform admin"
-                : resolvedMode === "venue"
-                  ? "Venue workspace"
-                  : "Digital cloakroom"}
-            </span>
-          </span>
+          <span className="text-sm font-semibold text-foreground">Cloak</span>
         </Link>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <nav className="flex items-center gap-1">
+        {/* Nav */}
+        {items.length > 0 && (
+          <nav className="flex items-center gap-0.5">
             {items.map((item) => (
               <Link
                 className={`rounded-md px-3 py-2 text-sm font-medium transition ${
@@ -88,41 +84,20 @@ export default function AppHeader({
               </Link>
             ))}
           </nav>
-          {isWorkspace ? <LogoutButton /> : null}
-        </div>
-      </div>
+        )}
 
-      <div className="flex gap-2 overflow-x-auto px-4 pb-3 md:hidden">
-        {items.map((item) => (
-          <Link
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
-              activePath === item.href ? "bg-brand text-white" : "bg-slate-100 text-muted"
-            }`}
-            href={item.href}
-            key={item.href}
-          >
-            {item.label}
-          </Link>
-        ))}
-        {isWorkspace ? <LogoutButton compact /> : null}
+        {/* Sign out */}
+        {isWorkspace ? (
+          <form action={signOut}>
+            <button
+              className="rounded-md border border-line bg-white px-3 py-1.5 text-sm font-medium text-muted transition hover:border-slate-300 hover:text-foreground"
+              type="submit"
+            >
+              Sign out
+            </button>
+          </form>
+        ) : null}
       </div>
     </header>
-  );
-}
-
-function LogoutButton({ compact = false }: { compact?: boolean }) {
-  return (
-    <form action={signOut}>
-      <button
-        className={
-          compact
-            ? "shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-muted"
-            : "rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-muted transition hover:border-slate-300 hover:text-foreground"
-        }
-        type="submit"
-      >
-        Log out
-      </button>
-    </form>
   );
 }

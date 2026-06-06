@@ -1,7 +1,16 @@
 import PageShell from "@/components/shared/PageShell";
 import Panel from "@/components/shared/Panel";
-import StatusList from "@/components/shared/StatusList";
 import type { VenueAnalyticsData } from "@/lib/venue-dashboard";
+
+type Tone = "blue" | "green" | "warning" | "danger" | "neutral";
+
+const toneClass: Record<Tone, string> = {
+  blue: "text-blue-600",
+  danger: "text-red-600",
+  green: "text-emerald-600",
+  neutral: "text-foreground",
+  warning: "text-amber-600",
+};
 
 export default function AnalyticsPage({
   data,
@@ -13,34 +22,44 @@ export default function AnalyticsPage({
   return (
     <PageShell
       activePath={venueOnly ? "/venueanalytics" : "/analytics"}
-      eyebrow={venueOnly ? "Venue analytics" : "Platform analytics"}
-      title={venueOnly ? data.venueLabel : "Platform performance"}
-      description="Review guest volume, collection activity, storage duration, utilization, and item mix."
+      eyebrow={venueOnly ? data.venueLabel : "Platform"}
+      title="Analytics"
+      venueRole={venueOnly ? "manager" : undefined}
     >
-      <StatusList items={data.stats} />
-      <Panel title="Operational insights">
-        <div className="grid gap-4 md:grid-cols-2">
-          <PopularTimesPreview data={data.hourlyVolume} />
-          <ItemTypesPreview data={data.itemTypes} />
+      {/* Stat bar */}
+      <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-xl border border-line bg-panel shadow-sm md:grid-cols-4">
+        {data.stats.map((stat) => (
+          <div className="flex flex-col gap-1 px-5 py-4" key={stat.label}>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted">
+              {stat.label}
+            </span>
+            <span className={`text-2xl font-semibold tabular-nums ${toneClass[stat.tone as Tone]}`}>
+              {stat.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <Panel title="Last 7 days">
+        <div className="grid gap-6 md:grid-cols-2">
+          <VolumeChart data={data.hourlyVolume} />
+          <ItemTypesChart data={data.itemTypes} />
         </div>
       </Panel>
     </PageShell>
   );
 }
 
-function PopularTimesPreview({
-  data,
-}: {
-  data: VenueAnalyticsData["hourlyVolume"];
-}) {
+function VolumeChart({ data }: { data: VenueAnalyticsData["hourlyVolume"] }) {
   return (
-    <div className="rounded-md border border-line p-4">
-      <p className="text-sm font-medium text-foreground">Ticket volume</p>
-      <div className="mt-4 flex h-36 items-end gap-2">
+    <div>
+      <p className="mb-4 text-sm font-medium text-foreground">Ticket volume by hour</p>
+      <div className="flex h-32 items-end gap-1.5">
         {data.map((item) => (
-          <div className="flex h-full w-full flex-col justify-end gap-2" key={item.hour}>
-            <span
-              className="w-full rounded-t bg-slate-800"
+          <div className="flex h-full w-full flex-col justify-end gap-1.5" key={item.hour}>
+            <div
+              className="w-full rounded-t-sm bg-brand/80"
               style={{ height: `${item.percent}%` }}
               title={`${item.count} tickets`}
             />
@@ -52,29 +71,32 @@ function PopularTimesPreview({
   );
 }
 
-function ItemTypesPreview({ data }: { data: VenueAnalyticsData["itemTypes"] }) {
+function ItemTypesChart({ data }: { data: VenueAnalyticsData["itemTypes"] }) {
+  if (data.length === 0) {
+    return (
+      <div>
+        <p className="mb-4 text-sm font-medium text-foreground">Item types</p>
+        <p className="text-sm text-muted">No item data yet — appears after staff activate tickets.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-md border border-line p-4">
-      <p className="text-sm font-medium text-foreground">Item types</p>
-      {data.length === 0 ? (
-        <p className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-muted">
-          Item details will appear after staff activates tickets.
-        </p>
-      ) : (
-        <div className="mt-4 space-y-3">
-          {data.map((item) => (
-            <div key={item.label}>
-              <div className="flex justify-between gap-3 text-sm">
-                <span>{item.label}</span>
-                <span className="text-muted">{item.count}</span>
-              </div>
-              <div className="mt-1 h-2 rounded-full bg-slate-100">
-                <div className="h-2 rounded-full bg-brand" style={{ width: `${item.percent}%` }} />
-              </div>
+    <div>
+      <p className="mb-4 text-sm font-medium text-foreground">Item types</p>
+      <div className="space-y-3">
+        {data.map((item) => (
+          <div key={item.label}>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-foreground">{item.label}</span>
+              <span className="text-muted">{item.count}</span>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-brand" style={{ width: `${item.percent}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
