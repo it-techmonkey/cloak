@@ -21,7 +21,7 @@ const ITEM_TYPES = [
 const AUTO_RESET_MS = 5000;
 
 const fieldClass =
-  "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted focus:border-foreground focus:ring-2 focus:ring-foreground/10 transition";
+  "rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 transition";
 
 // ─── Guest info card ──────────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ function GuestCard({ ticket }: { ticket: ScannerTicket }) {
 
 // ─── Multi-item activation form ───────────────────────────────────────────────
 
-type ItemLine = { type: string; count: number };
+type ItemLine = { type: string; count: string };
 
 function ActivationForm({
   formAction,
@@ -78,19 +78,19 @@ function ActivationForm({
   pending: boolean;
   ticket: ScannerTicket;
 }) {
-  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: 1 }]);
+  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: "1" }]);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
   function addLine() {
-    setItems((prev) => [...prev, { type: "", count: 1 }]);
+    setItems((prev) => [...prev, { type: "", count: "1" }]);
   }
 
   function removeLine(i: number) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function updateLine(i: number, field: "type" | "count", value: string | number) {
+  function updateLine(i: number, field: "type" | "count", value: string) {
     setItems((prev) =>
       prev.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)),
     );
@@ -100,13 +100,13 @@ function ActivationForm({
     e.preventDefault();
     setError("");
 
-    const valid = items.filter((item) => item.type && item.count > 0);
+    const valid = items.filter((item) => item.type && parseInt(item.count, 10) > 0);
     if (valid.length === 0) {
       setError("Select at least one item type.");
       return;
     }
 
-    const totalCount = valid.reduce((sum, item) => sum + Number(item.count), 0);
+    const totalCount = valid.reduce((sum, item) => sum + parseInt(item.count, 10), 0);
     const itemSummary = valid.map((item) => `${item.count}× ${item.type}`).join(", ");
     const description = notes.trim() ? `${itemSummary}\n${notes.trim()}` : itemSummary;
 
@@ -130,8 +130,9 @@ function ActivationForm({
         <div className="space-y-2">
           {items.map((item, i) => (
             <div className="flex items-center gap-2" key={i}>
+              {/* Type dropdown — grows to fill available space */}
               <select
-                className={`${fieldClass} flex-1`}
+                className={`${fieldClass} min-w-0 flex-1`}
                 onChange={(e) => updateLine(i, "type", e.target.value)}
                 required
                 value={item.type}
@@ -141,14 +142,24 @@ function ActivationForm({
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
+
+              {/* Qty — digits only, 1-99 */}
               <input
-                className={`${fieldClass} w-16 text-center`}
-                min={1}
-                max={99}
-                onChange={(e) => updateLine(i, "count", Number(e.target.value))}
-                type="number"
+                className={`${fieldClass} w-14 shrink-0 text-center`}
+                inputMode="numeric"
+                maxLength={2}
+                onChange={(e) => {
+                  // Strip anything that isn't a digit
+                  const digits = e.target.value.replace(/\D/g, "");
+                  if (digits === "") { updateLine(i, "count", ""); return; }
+                  const n = Math.min(Math.max(parseInt(digits, 10), 1), 99);
+                  updateLine(i, "count", String(n));
+                }}
+                placeholder="1"
+                type="text"
                 value={item.count}
               />
+
               {items.length > 1 && (
                 <button
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-foreground/30 hover:text-foreground"
@@ -176,7 +187,7 @@ function ActivationForm({
           Notes <span className="normal-case font-normal">(optional)</span>
         </label>
         <textarea
-          className={`${fieldClass} min-h-16 resize-none`}
+          className={`${fieldClass} w-full min-h-16 resize-none`}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Colour, brand, or distinguishing features…"
           value={notes}
@@ -288,23 +299,25 @@ export default function ScannerFrame() {
   const isSuccess = state.status === "success";
   const isError = state.status === "error";
 
+  const ticketReady = (isActivation || isCheckout) && ticket;
+
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      {/* Left — camera + code input + feedback */}
-      <div className="space-y-4">
+      {/* Left — camera + code input (hidden on mobile once ticket is ready) */}
+      <div className={`space-y-4 ${ticketReady ? "hidden lg:block" : ""}`}>
         <CameraScanner disabled={pending} onDetected={handleCameraDetection} />
 
         <form action={formAction} className="flex gap-2">
           <input name="_action" type="hidden" value="lookup" />
           <input
             autoComplete="off"
-            className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted focus:border-foreground/30 transition"
+            className="min-w-0 flex-1 rounded-xl border border-line bg-white px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted focus:border-foreground/30 transition"
             name="lookupValue"
             placeholder="Paste QR link or enter CLK-… code"
             ref={inputRef}
           />
           <button
-            className="rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+            className="shrink-0 rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
             disabled={pending}
             type="submit"
           >
@@ -327,23 +340,34 @@ export default function ScannerFrame() {
             <p className="text-center text-xs text-muted">Scanner resets automatically…</p>
           </div>
         ) : null}
-
-        {/* Mobile: guest card shown below camera */}
-        {(isActivation || isCheckout) && ticket ? (
-          <div className="lg:hidden">
-            <GuestCard ticket={ticket} />
-          </div>
-        ) : null}
       </div>
 
-      {/* Right — action form */}
-      <div>
-        {(isActivation || isCheckout) && ticket ? (
+      {/* Right — action form (full-width on mobile when ticket is ready) */}
+      <div className={ticketReady ? "lg:col-start-2" : ""}>
+        {ticketReady ? (
           <div className="space-y-4">
+            {/* On mobile: show a "← Scan again" link so staff can go back */}
+            <div className="flex items-center justify-between lg:hidden">
+              <GuestCard ticket={ticket} />
+            </div>
+            <button
+              className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground lg:hidden"
+              onClick={() => {
+                const fd = new FormData();
+                fd.set("_action", "reset");
+                startTransition(() => formAction(fd));
+                if (inputRef.current) inputRef.current.value = "";
+              }}
+              type="button"
+            >
+              ← Scan again
+            </button>
+
             <div className="hidden lg:block">
               <GuestCard ticket={ticket} />
             </div>
-            <div className="rounded-xl border border-line bg-slate-50 p-5">
+
+            <div className="rounded-xl border border-line bg-slate-50 p-4 sm:p-5">
               <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted">
                 {isActivation ? "Record items" : "Confirm collection"}
               </p>
@@ -361,9 +385,9 @@ export default function ScannerFrame() {
             </p>
             <div className="mt-5 space-y-4">
               {[
-                { label: "Pending pass", desc: "Record items and confirm activation." },
-                { label: "Active pass", desc: "Confirm guest has received their item." },
-                { label: "Blocked", desc: "Wrong venue, expired, or already collected." },
+                { desc: "Record items and confirm activation.", label: "Pending pass" },
+                { desc: "Confirm guest has received their item.", label: "Active pass" },
+                { desc: "Wrong venue, expired, or already collected.", label: "Blocked" },
               ].map((item) => (
                 <div key={item.label}>
                   <p className="text-sm font-medium text-foreground">{item.label}</p>
