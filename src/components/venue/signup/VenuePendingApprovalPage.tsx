@@ -18,7 +18,7 @@ export default function VenuePendingApprovalPage({
   venue: VenueSignupSummary | null;
 }) {
   return (
-    <div className="min-h-screen bg-[#eef3fa] text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center gap-5 px-4 py-7 sm:px-6">
         <div className="flex flex-col items-center text-center">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-br from-brand to-brand-dark text-lg font-semibold text-white shadow-lg">

@@ -41,44 +41,43 @@ function fmtTime(value: string) {
 export default function TodayTickets({ data }: { data: VenueDashboardData }) {
   return (
     <Panel title="Tickets">
-      {/* Search + filter */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <form action="/venuedashboard" className="flex gap-2">
-          {data.activeFilter !== "all" && (
-            <input name="filter" type="hidden" value={data.activeFilter} />
-          )}
-          <input
-            className="w-44 rounded-lg border border-line bg-slate-50 px-3 py-2 text-sm text-foreground outline-none focus:border-brand focus:bg-white"
-            defaultValue={data.search}
-            name="q"
-            placeholder="Search…"
-          />
-          <button
-            className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-white"
-            type="submit"
-          >
-            Go
-          </button>
-        </form>
+      {/* Search */}
+      <form action="/venuedashboard" className="mb-3 flex gap-2">
+        {data.activeFilter !== "all" && (
+          <input name="filter" type="hidden" value={data.activeFilter} />
+        )}
+        <input
+          className="min-w-0 flex-1 rounded-lg border border-line bg-slate-50 px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30 focus:bg-white"
+          defaultValue={data.search}
+          name="q"
+          placeholder="Search guests…"
+        />
+        <button
+          className="shrink-0 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-white"
+          type="submit"
+        >
+          Go
+        </button>
+      </form>
 
-        <div className="flex gap-1">
-          {filters.map((f) => {
-            const active = data.activeFilter === f.value;
-            return (
-              <Link
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  active
-                    ? "bg-foreground text-white"
-                    : "bg-slate-100 text-muted hover:bg-slate-200 hover:text-foreground"
-                }`}
-                href={filterHref(f.value, data.search)}
-                key={f.value}
-              >
-                {f.label}
-              </Link>
-            );
-          })}
-        </div>
+      {/* Filter tabs — scrollable on mobile */}
+      <div className="mb-4 flex gap-1 overflow-x-auto pb-1">
+        {filters.map((f) => {
+          const active = data.activeFilter === f.value;
+          return (
+            <Link
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                active
+                  ? "bg-foreground text-white"
+                  : "bg-slate-100 text-muted hover:bg-slate-200 hover:text-foreground"
+              }`}
+              href={filterHref(f.value, data.search)}
+              key={f.value}
+            >
+              {f.label}
+            </Link>
+          );
+        })}
       </div>
 
       {/* Table */}
@@ -91,29 +90,22 @@ export default function TodayTickets({ data }: { data: VenueDashboardData }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                <th className="px-4 py-3">Guest</th>
-                <th className="hidden px-4 py-3 lg:table-cell">Code</th>
-                <th className="hidden px-4 py-3 md:table-cell">Item</th>
-                <th className="hidden px-4 py-3 lg:table-cell">Time</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-3 py-3 sm:px-4">Guest</th>
+                <th className="hidden px-3 py-3 sm:table-cell sm:px-4">Item</th>
+                <th className="hidden px-3 py-3 lg:table-cell lg:px-4">Time</th>
+                <th className="px-3 py-3 sm:px-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {data.tickets.map((ticket) => (
                 <tr className="hover:bg-slate-50" key={ticket.id}>
-                  <td className="px-4 py-3">
-                    <Link
-                      className="block"
-                      href={`/venueticketdetail?id=${ticket.id}`}
-                    >
+                  <td className="px-3 py-3 sm:px-4">
+                    <Link className="block" href={`/venueticketdetail?id=${ticket.id}`}>
                       <p className="font-medium text-foreground">{ticket.guestName}</p>
-                      <p className="mt-0.5 text-xs text-muted">{ticket.guestPhone}</p>
+                      <p className="mt-0.5 font-mono text-xs text-muted">{ticket.publicCode}</p>
                     </Link>
                   </td>
-                  <td className="hidden px-4 py-3 font-mono text-xs text-muted lg:table-cell">
-                    {ticket.publicCode}
-                  </td>
-                  <td className="hidden px-4 py-3 md:table-cell">
+                  <td className="hidden px-3 py-3 sm:table-cell sm:px-4">
                     {ticket.itemType ? (
                       <span className="text-foreground">
                         {ticket.itemCount > 1 ? `${ticket.itemCount}× ` : ""}
@@ -123,10 +115,10 @@ export default function TodayTickets({ data }: { data: VenueDashboardData }) {
                       <span className="text-muted">—</span>
                     )}
                   </td>
-                  <td className="hidden px-4 py-3 text-muted lg:table-cell">
+                  <td className="hidden px-3 py-3 text-muted lg:table-cell lg:px-4">
                     {fmtTime(ticket.createdAt)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 sm:px-4">
                     <StatusPill tone={statusTone(ticket.status)}>
                       {statusLabel(ticket.status)}
                     </StatusPill>

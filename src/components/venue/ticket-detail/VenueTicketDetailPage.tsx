@@ -74,7 +74,7 @@ export default function VenueTicketDetailPage({ ticket }: { ticket: VenueTicketD
         </>
       }
     >
-      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid gap-5 md:grid-cols-2">
         <Panel title="Guest">
           <div className="grid gap-4 sm:grid-cols-2">
             <FieldPreview label="Name" value={ticket.guestName} />

@@ -45,43 +45,46 @@ export default function TicketPage({ ticket }: { ticket: TicketView }) {
           : "Show this QR code or fallback code at the selected venue counter to activate storage.";
 
   return (
-    <div className="min-h-screen bg-night text-white">
-      <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
+    <div className="min-h-screen bg-background">
+      <main className="mx-auto flex w-full max-w-sm flex-col gap-4 px-4 py-6 sm:max-w-md">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Cloak</p>
-            <h1 className="mt-1 text-2xl font-semibold">{title}</h1>
-            <p className="mt-1.5 text-sm leading-6 text-white/50">{description}</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted">Cloak</p>
+            <h1 className="mt-1 text-2xl font-semibold text-foreground">{title}</h1>
+            <p className="mt-1.5 text-sm leading-6 text-muted">{description}</p>
           </div>
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 text-xs font-bold text-white">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-foreground text-xs font-bold text-white">
             CL
           </span>
         </div>
 
-        {/* Stored items — only when active or collected */}
+        {/* Cloak number + items — when active or collected */}
         {(isActive || isCollected) && ticket.itemType ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/30">
+          <div className="rounded-xl border border-line bg-panel p-4">
+            {ticket.storageLocation ? (
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  {isCollected ? "Was stored at" : "Cloak number"}
+                </p>
+                <span className="rounded-lg bg-foreground px-3 py-1 font-mono text-sm font-bold text-white">
+                  {ticket.storageLocation}
+                </span>
+              </div>
+            ) : null}
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted">
               {isCollected ? "Items returned" : "Stored items"}
             </p>
-            <div className="mt-3 space-y-2">
+            <div className="mt-2 space-y-1.5">
               {parseItemLines(ticket.itemDescription, ticket.itemType, ticket.itemCount).map(
                 (line, i) => (
                   <div className="flex items-center justify-between" key={i}>
-                    <span className="text-sm text-white">{line.label}</span>
-                    <span className="tabular-nums text-sm font-medium text-white/60">
-                      ×{line.count}
-                    </span>
+                    <span className="text-sm text-foreground">{line.label}</span>
+                    <span className="tabular-nums text-sm text-muted">×{line.count}</span>
                   </div>
                 ),
               )}
             </div>
-            {ticket.storageLocation && !isCollected ? (
-              <p className="mt-3 border-t border-white/10 pt-3 text-xs text-white/40">
-                Location: {ticket.storageLocation}
-              </p>
-            ) : null}
           </div>
         ) : null}
 
@@ -91,25 +94,25 @@ export default function TicketPage({ ticket }: { ticket: TicketView }) {
         {!isClosed ? (
           <div className="grid gap-2">
             <button
-              className="flex cursor-not-allowed items-center justify-between rounded-xl bg-white/5 px-4 py-3 text-sm font-medium text-white/30"
+              className="flex cursor-not-allowed items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-muted"
               disabled
               type="button"
             >
               <span>Add to Apple Wallet</span>
-              <span className="text-xs text-white/20">Coming soon</span>
+              <span className="text-xs text-muted/60">Coming soon</span>
             </button>
             <button
-              className="flex cursor-not-allowed items-center justify-between rounded-xl bg-white/5 px-4 py-3 text-sm font-medium text-white/30"
+              className="flex cursor-not-allowed items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-muted"
               disabled
               type="button"
             >
               <span>Add to Google Wallet</span>
-              <span className="text-xs text-white/20">Coming soon</span>
+              <span className="text-xs text-muted/60">Coming soon</span>
             </button>
           </div>
         ) : null}
 
-        <p className="text-center text-xs text-white/20">
+        <p className="text-center text-xs text-muted">
           Refresh this page to see the latest status.
         </p>
       </main>
@@ -117,27 +120,18 @@ export default function TicketPage({ ticket }: { ticket: TicketView }) {
   );
 }
 
-// Parse item description like "2× Coat, 1× Bag\nExtra notes" into lines
 function parseItemLines(
   description: string | null,
   fallbackType: string,
   fallbackCount: number,
 ): Array<{ label: string; count: number }> {
-  if (!description) {
-    return [{ label: fallbackType, count: fallbackCount }];
-  }
-
-  // First line may be "2× Coat, 1× Bag" format
+  if (!description) return [{ label: fallbackType, count: fallbackCount }];
   const firstLine = description.split("\n")[0];
   const parts = firstLine.split(",").map((s) => s.trim());
-
   const parsed: Array<{ label: string; count: number }> = [];
   for (const part of parts) {
     const match = part.match(/^(\d+)[×x]\s*(.+)$/i);
-    if (match) {
-      parsed.push({ count: parseInt(match[1], 10), label: match[2].trim() });
-    }
+    if (match) parsed.push({ count: parseInt(match[1], 10), label: match[2].trim() });
   }
-
   return parsed.length > 0 ? parsed : [{ label: fallbackType, count: fallbackCount }];
 }

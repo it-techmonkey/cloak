@@ -11,10 +11,10 @@ export default function LoginPage({
   nextPath: string;
 }) {
   return (
-    <div className="min-h-screen bg-[#eef3fa] text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-8">
         <div className="mb-6 text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-br from-brand to-brand-dark text-lg font-semibold text-white shadow-lg">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-foreground text-sm font-bold text-white shadow">
             CL
           </div>
           <h1 className="mt-4 text-3xl font-semibold">Sign in</h1>
@@ -29,7 +29,7 @@ export default function LoginPage({
             <label className="grid gap-2 text-sm font-medium text-foreground">
               Email
               <input
-                className="rounded-lg border border-line bg-white px-3 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15"
+                className="rounded-lg border border-line bg-white px-3 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
                 name="email"
                 placeholder="you@example.com"
                 required
@@ -39,7 +39,7 @@ export default function LoginPage({
             <label className="grid gap-2 text-sm font-medium text-foreground">
               Password
               <input
-                className="rounded-lg border border-line bg-white px-3 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15"
+                className="rounded-lg border border-line bg-white px-3 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
                 name="password"
                 placeholder="Enter your password"
                 required

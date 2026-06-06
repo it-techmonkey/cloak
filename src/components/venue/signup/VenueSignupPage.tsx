@@ -25,7 +25,7 @@ export default function VenueSignupPage({
   };
 
   return (
-    <div className="min-h-screen bg-[#eef3fa] text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-7 sm:px-6">
         <div className="mx-auto w-full max-w-3xl">
           <div className="flex items-center justify-between text-xs font-medium text-brand">

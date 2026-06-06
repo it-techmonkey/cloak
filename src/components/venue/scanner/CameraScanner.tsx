@@ -2,30 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type BarcodeResult = {
-  rawValue: string;
-};
-
-type BarcodeDetectorConstructor = new (options: {
-  formats: string[];
-}) => {
+type BarcodeResult = { rawValue: string };
+type BarcodeDetectorConstructor = new (options: { formats: string[] }) => {
   detect(source: HTMLVideoElement): Promise<BarcodeResult[]>;
 };
-
 type CameraStatus = "idle" | "starting" | "scanning" | "unsupported" | "error";
-
-type BarcodeWindow = Window &
-  typeof globalThis & {
-    BarcodeDetector?: BarcodeDetectorConstructor;
-  };
+type BarcodeWindow = Window & typeof globalThis & { BarcodeDetector?: BarcodeDetectorConstructor };
 
 function cameraErrorMessage(error: unknown) {
-  if (error instanceof DOMException && error.name === "NotAllowedError") {
+  if (error instanceof DOMException && error.name === "NotAllowedError")
     return "Camera permission denied. Use the fallback code below.";
-  }
-  if (error instanceof DOMException && error.name === "NotFoundError") {
-    return "No camera found on this device. Use the fallback code below.";
-  }
+  if (error instanceof DOMException && error.name === "NotFoundError")
+    return "No camera found. Use the fallback code below.";
   return "Camera unavailable. Use the fallback code below.";
 }
 
@@ -44,10 +32,7 @@ export default function CameraScanner({
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   function stopCamera() {
-    if (frameRef.current) {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    }
+    if (frameRef.current) { cancelAnimationFrame(frameRef.current); frameRef.current = null; }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
@@ -57,18 +42,15 @@ export default function CameraScanner({
 
   async function startCamera() {
     if (disabled || status === "starting" || status === "scanning") return;
-
     const BarcodeDetector = (window as BarcodeWindow).BarcodeDetector;
     if (!navigator.mediaDevices?.getUserMedia || !BarcodeDetector) {
       setStatus("unsupported");
-      setMessage("QR camera scanning is not supported in this browser.");
+      setMessage("QR scanning not supported in this browser.");
       return;
     }
-
     setStatus("starting");
     setMessage(null);
     detectedRef.current = false;
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -77,7 +59,6 @@ export default function CameraScanner({
       const detector = new BarcodeDetector({ formats: ["qr_code"] });
       const video = videoRef.current;
       if (!video) { stopCamera(); return; }
-
       streamRef.current = stream;
       video.srcObject = stream;
       await video.play();
@@ -117,9 +98,9 @@ export default function CameraScanner({
   const isActive = status === "scanning" || status === "starting";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
-      {/* Camera viewport */}
-      <div className="relative aspect-video w-full bg-black">
+    <div className="overflow-hidden rounded-xl border border-line bg-white">
+      {/* Viewport */}
+      <div className="relative aspect-video w-full bg-zinc-900">
         <video
           aria-label="QR camera preview"
           className="h-full w-full object-cover"
@@ -128,45 +109,39 @@ export default function CameraScanner({
           ref={videoRef}
         />
 
-        {/* Overlay when not scanning */}
+        {/* Idle overlay */}
         {!isActive && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black">
-            <div className="relative h-36 w-36">
-              {/* Corner marks */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900">
+            <div className="relative h-32 w-32">
               {[
-                "top-0 left-0 border-t-2 border-l-2 rounded-tl-lg",
-                "top-0 right-0 border-t-2 border-r-2 rounded-tr-lg",
-                "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-lg",
-                "bottom-0 right-0 border-b-2 border-r-2 rounded-br-lg",
+                "top-0 left-0 border-t-2 border-l-2 rounded-tl",
+                "top-0 right-0 border-t-2 border-r-2 rounded-tr",
+                "bottom-0 left-0 border-b-2 border-l-2 rounded-bl",
+                "bottom-0 right-0 border-b-2 border-r-2 rounded-br",
               ].map((cls) => (
-                <span
-                  key={cls}
-                  className={`absolute h-6 w-6 border-white/30 ${cls}`}
-                />
+                <span key={cls} className={`absolute h-6 w-6 border-white/30 ${cls}`} />
               ))}
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tracking-widest text-white/20 uppercase">
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tracking-widest text-white/20 uppercase">
                 QR
               </span>
             </div>
             {message ? (
-              <p className="text-center text-xs text-white/40 px-6">{message}</p>
+              <p className="px-6 text-center text-xs text-white/50">{message}</p>
             ) : (
-              <p className="text-center text-xs text-white/25 px-6">
-                Camera inactive
-              </p>
+              <p className="text-xs text-white/25">Camera inactive</p>
             )}
           </div>
         )}
 
-        {/* Scanning crosshair overlay */}
+        {/* Scanning crosshair */}
         {status === "scanning" && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="relative h-48 w-48">
               {[
-                "top-0 left-0 border-t-2 border-l-2 rounded-tl-lg",
-                "top-0 right-0 border-t-2 border-r-2 rounded-tr-lg",
-                "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-lg",
-                "bottom-0 right-0 border-b-2 border-r-2 rounded-br-lg",
+                "top-0 left-0 border-t-2 border-l-2 rounded-tl",
+                "top-0 right-0 border-t-2 border-r-2 rounded-tr",
+                "bottom-0 left-0 border-b-2 border-l-2 rounded-bl",
+                "bottom-0 right-0 border-b-2 border-r-2 rounded-br",
               ].map((cls) => (
                 <span key={cls} className={`absolute h-8 w-8 border-white ${cls}`} />
               ))}
@@ -179,12 +154,12 @@ export default function CameraScanner({
       <div className="flex items-center gap-3 px-4 py-3">
         {isActive ? (
           <>
-            <span className="flex items-center gap-2 text-xs text-white/50">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+            <span className="flex items-center gap-2 text-xs text-muted">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
               Scanning…
             </span>
             <button
-              className="ml-auto rounded-lg border border-white/10 px-4 py-1.5 text-xs font-medium text-white/50 hover:border-white/20 hover:text-white/80"
+              className="ml-auto rounded-lg border border-line px-4 py-1.5 text-xs font-medium text-muted transition hover:border-foreground/20 hover:text-foreground"
               onClick={() => { stopCamera(); setStatus("idle"); setMessage(null); }}
               type="button"
             >
@@ -193,12 +168,12 @@ export default function CameraScanner({
           </>
         ) : (
           <button
-            className="w-full rounded-lg bg-white/10 py-2 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-40"
+            className="w-full rounded-lg border border-line py-2 text-sm font-medium text-foreground transition hover:bg-slate-50 disabled:opacity-40"
             disabled={disabled}
             onClick={startCamera}
             type="button"
           >
-            Start camera
+            Start camera scan
           </button>
         )}
       </div>

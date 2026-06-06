@@ -21,21 +21,24 @@ export default function PageShell({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader activePath={activePath} venueRole={venueRole} />
-      <main className="mx-auto w-full max-w-7xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
+      <main className="mx-auto w-full max-w-7xl px-4 pb-12 pt-5 sm:px-6 lg:px-8">
+        {/* Page header — stacks on mobile, side-by-side on sm+ */}
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
             {eyebrow ? (
               <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted">
                 {eyebrow}
               </p>
             ) : null}
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              {title}
+            </h1>
             {description ? (
               <p className="mt-1 text-sm text-muted">{description}</p>
             ) : null}
           </div>
           {actions ? (
-            <div className="flex shrink-0 items-center gap-2">{actions}</div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
           ) : null}
         </div>
         <div className="grid gap-5">{children}</div>

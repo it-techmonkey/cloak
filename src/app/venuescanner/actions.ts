@@ -295,12 +295,37 @@ async function handleLookup(formData: FormData): Promise<ScannerState> {
   return ticketReadyState(ticket, venueName);
 }
 
+async function claimAvailableSlot(supabase: SupabaseAdmin, venueId: string) {
+  // Find the lowest-label available slot for this venue
+  const { data: slot } = await supabase
+    .from("venue_slots")
+    .select("id, label")
+    .eq("venue_id", venueId)
+    .eq("status", "available")
+    .eq("active", true)
+    .order("label", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!slot) return null;
+
+  // Atomically mark it occupied — only succeeds if still available
+  const { data: claimed } = await supabase
+    .from("venue_slots")
+    .update({ status: "occupied" })
+    .eq("id", slot.id)
+    .eq("status", "available")
+    .select("id, label")
+    .maybeSingle();
+
+  return claimed ?? null;
+}
+
 async function handleActivation(formData: FormData): Promise<ScannerState> {
   const context = await getScannerContext();
   const ticketId = readField(formData, "ticketId");
   const itemType = readField(formData, "itemType");
   const itemDescription = readField(formData, "itemDescription");
-  const storageLocation = readField(formData, "storageLocation");
   const itemCount = Number(readField(formData, "itemCount") || "1");
 
   if (!context) {
@@ -328,14 +353,13 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
       scanner: context.guard,
       ticket,
     });
-
     return { message: "This ticket has expired and cannot be activated.", status: "error" };
   }
 
-  if (!itemType || !storageLocation) {
+  if (!itemType) {
     return {
       intent: "activation",
-      message: "Item type and storage location are required before activation.",
+      message: "Select at least one item type before activation.",
       status: "ready",
       ticket: toScannerTicket(ticket, venueName),
     };
@@ -350,17 +374,27 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
     };
   }
 
+  // Auto-assign next available cloak slot
+  const slot = await claimAvailableSlot(context.supabase, ticket.venue_id);
+  if (!slot) {
+    return {
+      message: "No cloakroom slots are available. Please free a slot first.",
+      status: "error",
+    };
+  }
+
   const activatedAt = new Date().toISOString();
   const { data: updatedTicket, error } = await context.supabase
     .from("tickets")
     .update({
       activated_at: activatedAt,
       activation_confirmed_by: context.guard.userId,
+      assigned_slot_id: slot.id,
       item_count: itemCount,
       item_description: itemDescription || null,
       item_type: itemType,
       status: "active",
-      storage_location: storageLocation,
+      storage_location: slot.label,
     })
     .eq("id", ticket.id)
     .eq("status", "pending_activation")
@@ -368,6 +402,11 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
     .single();
 
   if (error || !updatedTicket) {
+    // Release the slot we just claimed since ticket update failed
+    await context.supabase
+      .from("venue_slots")
+      .update({ status: "available" })
+      .eq("id", slot.id);
     return { message: "Ticket activation failed. Please refresh and try again.", status: "error" };
   }
 
@@ -381,7 +420,7 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
   revalidatePath("/ticket");
 
   return {
-    message: "Ticket activated. The item is now stored.",
+    message: `Ticket activated. Cloak ${slot.label} assigned.`,
     status: "success",
     ticket: toScannerTicket(updatedTicket, venueName),
   };

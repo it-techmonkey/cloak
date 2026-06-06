@@ -79,7 +79,7 @@ function ManagerDashboard({ data }: { data: VenueDashboardData }) {
     >
       <PendingAlert count={pendingCount} />
       <VenueStats stats={data.stats} />
-      <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+      <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
         <TodayTickets data={data} />
         <StaffRoster staff={data.staff} />
       </div>

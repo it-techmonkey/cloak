@@ -168,8 +168,8 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
 
   return (
     <Panel title="Venues">
-      {/* Filter tabs */}
-      <div className="mb-4 flex gap-1 border-b border-line pb-3">
+      {/* Filter tabs — scrollable on mobile */}
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line pb-3">
         {STATUS_TABS.map((tab) => {
           const count = countFor(tab.value);
           const active = filter === tab.value;
