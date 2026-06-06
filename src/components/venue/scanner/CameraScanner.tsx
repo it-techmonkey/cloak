@@ -1,19 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import jsQR from "jsqr";
 
+// BarcodeDetector is only available in Chrome/Edge/Android Chrome.
+// Safari (including all iOS browsers) does NOT support it — we fall back to jsQR.
 type BarcodeResult = { rawValue: string };
-type BarcodeDetectorConstructor = new (options: { formats: string[] }) => {
-  detect(source: HTMLVideoElement): Promise<BarcodeResult[]>;
-};
-type CameraStatus = "idle" | "starting" | "scanning" | "unsupported" | "error";
-type BarcodeWindow = Window & typeof globalThis & { BarcodeDetector?: BarcodeDetectorConstructor };
+type BarcodeDetectorInstance = { detect(source: HTMLVideoElement): Promise<BarcodeResult[]> };
+type BarcodeDetectorCtor = new (opts: { formats: string[] }) => BarcodeDetectorInstance;
+type BarcodeWindow = Window & typeof globalThis & { BarcodeDetector?: BarcodeDetectorCtor };
 
-function cameraErrorMessage(error: unknown) {
-  if (error instanceof DOMException && error.name === "NotAllowedError")
-    return "Camera permission denied. Use the fallback code below.";
-  if (error instanceof DOMException && error.name === "NotFoundError")
-    return "No camera found. Use the fallback code below.";
+type CameraStatus = "idle" | "starting" | "scanning" | "unsupported" | "error";
+
+function hasBarcodeDetector(): boolean {
+  return typeof window !== "undefined" && !!(window as BarcodeWindow).BarcodeDetector;
+}
+
+function cameraErrorMessage(error: unknown): string {
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError")
+      return "Camera permission denied. Allow camera access in your browser settings, then try again.";
+    if (error.name === "NotFoundError")
+      return "No camera found on this device.";
+    if (error.name === "NotReadableError")
+      return "Camera is already in use by another app.";
+    if (error.name === "OverconstrainedError")
+      return "Could not access the rear camera. Trying front camera…";
+  }
   return "Camera unavailable. Use the fallback code below.";
 }
 
@@ -30,6 +43,8 @@ export default function CameraScanner({
   const frameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Hidden canvas for jsQR frame capture on browsers without BarcodeDetector
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   function stopCamera() {
     if (frameRef.current) { cancelAnimationFrame(frameRef.current); frameRef.current = null; }
@@ -42,52 +57,110 @@ export default function CameraScanner({
 
   async function startCamera() {
     if (disabled || status === "starting" || status === "scanning") return;
-    const BarcodeDetector = (window as BarcodeWindow).BarcodeDetector;
-    if (!navigator.mediaDevices?.getUserMedia || !BarcodeDetector) {
+
+    if (!navigator.mediaDevices?.getUserMedia) {
       setStatus("unsupported");
-      setMessage("QR scanning not supported in this browser.");
+      setMessage("Camera access is not available. Make sure you're on HTTPS and using a supported browser.");
       return;
     }
+
     setStatus("starting");
     setMessage(null);
     detectedRef.current = false;
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { ideal: "environment" } },
-      });
-      const detector = new BarcodeDetector({ formats: ["qr_code"] });
+      // Try rear camera first, fall back to any available camera
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: "environment" } },
+        });
+      } catch {
+        // OverconstrainedError on some devices — retry without facing mode constraint
+        stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+      }
+
       const video = videoRef.current;
       if (!video) { stopCamera(); return; }
+
       streamRef.current = stream;
       video.srcObject = stream;
+
+      // iOS Safari requires the video to be muted+playsInline (set in JSX) and
+      // play() must be called after srcObject is set. We wait for loadedmetadata
+      // before playing to avoid AbortError on iOS.
+      await new Promise<void>((resolve) => {
+        video.onloadedmetadata = () => resolve();
+      });
       await video.play();
+
       setStatus("scanning");
       setMessage(null);
 
-      const scanFrame = async () => {
-        if (!videoRef.current || detectedRef.current) return;
-        if (videoRef.current.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-          try {
-            const results = await detector.detect(videoRef.current);
-            const value = results[0]?.rawValue?.trim();
-            if (value) {
-              detectedRef.current = true;
+      if (hasBarcodeDetector()) {
+        // Fast path: native BarcodeDetector (Chrome, Edge, Android)
+        const BarcodeDetectorCtor = (window as BarcodeWindow).BarcodeDetector!;
+        const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+
+        const scanFrame = async () => {
+          if (!videoRef.current || detectedRef.current) return;
+          if (videoRef.current.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            try {
+              const results = await detector.detect(videoRef.current);
+              const value = results[0]?.rawValue?.trim();
+              if (value) {
+                detectedRef.current = true;
+                stopCamera();
+                setStatus("idle");
+                onDetected(value);
+                return;
+              }
+            } catch {
+              setStatus("error");
+              setMessage("Camera scanning stopped. Use the fallback code below.");
               stopCamera();
-              setStatus("idle");
-              onDetected(value);
               return;
             }
-          } catch {
-            setStatus("error");
-            setMessage("Camera error. Use the fallback code below.");
-            stopCamera();
-            return;
           }
-        }
+          frameRef.current = requestAnimationFrame(scanFrame);
+        };
         frameRef.current = requestAnimationFrame(scanFrame);
-      };
-      frameRef.current = requestAnimationFrame(scanFrame);
+      } else {
+        // Fallback path: jsQR + canvas (Safari, Firefox, iOS all browsers)
+        const canvas = canvasRef.current ?? document.createElement("canvas");
+
+        const scanFrame = () => {
+          const vid = videoRef.current;
+          if (!vid || detectedRef.current) return;
+
+          if (vid.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && vid.videoWidth > 0) {
+            canvas.width = vid.videoWidth;
+            canvas.height = vid.videoHeight;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            if (ctx) {
+              ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+              try {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                  inversionAttempts: "dontInvert",
+                });
+                if (code?.data?.trim()) {
+                  detectedRef.current = true;
+                  stopCamera();
+                  setStatus("idle");
+                  onDetected(code.data.trim());
+                  return;
+                }
+              } catch {
+                // Frame decode error — skip this frame and continue
+              }
+            }
+          }
+          frameRef.current = requestAnimationFrame(scanFrame);
+        };
+        frameRef.current = requestAnimationFrame(scanFrame);
+      }
     } catch (error) {
       setStatus("error");
       setMessage(cameraErrorMessage(error));
@@ -99,7 +172,10 @@ export default function CameraScanner({
 
   return (
     <div className="overflow-hidden rounded-xl border border-line bg-white">
-      {/* Viewport */}
+      {/* Hidden canvas used by jsQR fallback */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Camera viewport */}
       <div className="relative aspect-video w-full bg-zinc-900">
         <video
           aria-label="QR camera preview"
@@ -109,9 +185,9 @@ export default function CameraScanner({
           ref={videoRef}
         />
 
-        {/* Idle overlay */}
+        {/* Idle / error overlay */}
         {!isActive && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900 px-6">
             <div className="relative h-32 w-32">
               {[
                 "top-0 left-0 border-t-2 border-l-2 rounded-tl",
@@ -126,7 +202,7 @@ export default function CameraScanner({
               </span>
             </div>
             {message ? (
-              <p className="px-6 text-center text-xs text-white/50">{message}</p>
+              <p className="text-center text-xs leading-5 text-white/50">{message}</p>
             ) : (
               <p className="text-xs text-white/25">Camera inactive</p>
             )}
@@ -168,7 +244,7 @@ export default function CameraScanner({
           </>
         ) : (
           <button
-            className="w-full rounded-lg border border-line py-2 text-sm font-medium text-foreground transition hover:bg-slate-50 disabled:opacity-40"
+            className="w-full rounded-lg border border-line py-2.5 text-sm font-medium text-foreground transition hover:bg-slate-50 disabled:opacity-40"
             disabled={disabled}
             onClick={startCamera}
             type="button"

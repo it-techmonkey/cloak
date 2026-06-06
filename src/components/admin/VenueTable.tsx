@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import {
   approveVenue,
   rejectVenue,
@@ -49,47 +49,94 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function ActionButton({
+  children,
+  className,
+  disabled,
+  onClick,
+  pending,
+}: {
+  children: string;
+  className: string;
+  disabled?: boolean;
+  onClick: () => void;
+  pending: boolean;
+}) {
+  return (
+    <button
+      className={`${className} disabled:opacity-50`}
+      disabled={disabled || pending}
+      onClick={onClick}
+      type="button"
+    >
+      {pending ? (
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          {children}
+        </span>
+      ) : (
+        children
+      )}
+    </button>
+  );
+}
+
 function RowActions({ venue }: { venue: AdminVenueReview }) {
   const [expanded, setExpanded] = useState(false);
+  const [reason, setReason] = useState("");
+  const [isPending, startAction] = useTransition();
+
+  function runAction(action: (fd: FormData) => Promise<void>, extraFields?: Record<string, string>) {
+    startAction(async () => {
+      const fd = new FormData();
+      fd.set("venueId", venue.id);
+      if (extraFields) {
+        Object.entries(extraFields).forEach(([k, v]) => fd.set(k, v));
+      }
+      await action(fd);
+    });
+  }
 
   if (venue.status === "pending") {
     return (
       <div className="flex items-center justify-end gap-2">
-        <form action={approveVenue}>
-          <input name="venueId" type="hidden" value={venue.id} />
-          <button
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
-            type="submit"
-          >
-            Approve
-          </button>
-        </form>
+        <ActionButton
+          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+          onClick={() => runAction(approveVenue)}
+          pending={isPending}
+        >
+          Approve
+        </ActionButton>
+
         {expanded ? (
-          <form action={rejectVenue} className="flex gap-1.5">
-            <input name="venueId" type="hidden" value={venue.id} />
+          <div className="flex items-center gap-1.5">
             <input
               autoFocus
-              className="w-36 rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-foreground outline-none focus:border-brand"
-              name="reason"
+              className="w-32 rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-foreground outline-none focus:border-foreground/30"
+              onChange={(e) => setReason(e.target.value)}
               placeholder="Reason (optional)"
+              value={reason}
             />
-            <button
+            <ActionButton
               className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-              type="submit"
+              onClick={() => runAction(rejectVenue, { reason })}
+              pending={isPending}
             >
               Reject
-            </button>
+            </ActionButton>
             <button
               className="text-xs text-muted hover:text-foreground"
+              disabled={isPending}
               onClick={() => setExpanded(false)}
               type="button"
             >
               Cancel
             </button>
-          </form>
+          </div>
         ) : (
           <button
-            className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-muted transition hover:text-foreground"
+            className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-muted transition hover:text-foreground disabled:opacity-50"
+            disabled={isPending}
             onClick={() => setExpanded(true)}
             type="button"
           >
@@ -104,31 +151,34 @@ function RowActions({ venue }: { venue: AdminVenueReview }) {
     return (
       <div className="flex items-center justify-end gap-2">
         {expanded ? (
-          <form action={suspendVenue} className="flex gap-1.5">
-            <input name="venueId" type="hidden" value={venue.id} />
+          <div className="flex items-center gap-1.5">
             <input
               autoFocus
-              className="w-36 rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-foreground outline-none focus:border-brand"
-              name="reason"
+              className="w-32 rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-foreground outline-none focus:border-foreground/30"
+              onChange={(e) => setReason(e.target.value)}
               placeholder="Reason (optional)"
+              value={reason}
             />
-            <button
+            <ActionButton
               className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-              type="submit"
+              onClick={() => runAction(suspendVenue, { reason })}
+              pending={isPending}
             >
               Suspend
-            </button>
+            </ActionButton>
             <button
-              className="text-xs text-muted hover:text-foreground"
+              className="text-xs text-muted hover:text-foreground disabled:opacity-50"
+              disabled={isPending}
               onClick={() => setExpanded(false)}
               type="button"
             >
               Cancel
             </button>
-          </form>
+          </div>
         ) : (
           <button
-            className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-muted transition hover:text-foreground"
+            className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-muted transition hover:text-foreground disabled:opacity-50"
+            disabled={isPending}
             onClick={() => setExpanded(true)}
             type="button"
           >
@@ -142,15 +192,13 @@ function RowActions({ venue }: { venue: AdminVenueReview }) {
   if (venue.status === "suspended" || venue.status === "rejected") {
     return (
       <div className="flex items-center justify-end">
-        <form action={approveVenue}>
-          <input name="venueId" type="hidden" value={venue.id} />
-          <button
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
-            type="submit"
-          >
-            Reinstate
-          </button>
-        </form>
+        <ActionButton
+          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+          onClick={() => runAction(approveVenue)}
+          pending={isPending}
+        >
+          Reinstate
+        </ActionButton>
       </div>
     );
   }
@@ -168,14 +216,14 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
 
   return (
     <Panel title="Venues">
-      {/* Filter tabs — scrollable on mobile */}
+      {/* Filter tabs */}
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line pb-3">
         {STATUS_TABS.map((tab) => {
           const count = countFor(tab.value);
           const active = filter === tab.value;
           return (
             <button
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 active
                   ? "bg-foreground text-white"
                   : "text-muted hover:bg-slate-100 hover:text-foreground"
@@ -199,7 +247,6 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
         })}
       </div>
 
-      {/* Table */}
       {visible.length === 0 ? (
         <div className="rounded-lg border border-dashed border-line bg-slate-50 px-4 py-8 text-center text-sm text-muted">
           No venues in this category.

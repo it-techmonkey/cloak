@@ -5,7 +5,7 @@ import { handleScannerAction } from "@/app/venuescanner/actions";
 import { initialScannerState, type ScannerState, type ScannerTicket } from "@/app/venuescanner/types";
 import CameraScanner from "./CameraScanner";
 
-const ITEM_TYPES = [
+const PRESET_ITEM_TYPES = [
   "Bag",
   "Backpack",
   "Coat",
@@ -17,6 +17,8 @@ const ITEM_TYPES = [
   "Package",
   "Other",
 ];
+
+const CUSTOM_SENTINEL = "__custom__";
 
 const AUTO_RESET_MS = 5000;
 
@@ -67,7 +69,7 @@ function GuestCard({ ticket }: { ticket: ScannerTicket }) {
 
 // ─── Multi-item activation form ───────────────────────────────────────────────
 
-type ItemLine = { type: string; count: string };
+type ItemLine = { type: string; count: string; custom: string };
 
 function ActivationForm({
   formAction,
@@ -78,42 +80,60 @@ function ActivationForm({
   pending: boolean;
   ticket: ScannerTicket;
 }) {
-  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: "1" }]);
+  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: "1", custom: "" }]);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
   function addLine() {
-    setItems((prev) => [...prev, { type: "", count: "1" }]);
+    setItems((prev) => [...prev, { type: "", count: "1", custom: "" }]);
   }
 
   function removeLine(i: number) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function updateLine(i: number, field: "type" | "count", value: string) {
+  function updateLine(i: number, field: "type" | "count" | "custom", value: string) {
     setItems((prev) =>
       prev.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)),
     );
+  }
+
+  // Resolve the display label for an item — custom text takes over when selected
+  function resolvedType(item: ItemLine): string {
+    return item.type === CUSTOM_SENTINEL ? item.custom.trim() : item.type;
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    const valid = items.filter((item) => item.type && parseInt(item.count, 10) > 0);
+    const valid = items.filter((item) => {
+      const label = resolvedType(item);
+      return label && parseInt(item.count, 10) > 0;
+    });
+
     if (valid.length === 0) {
       setError("Select at least one item type.");
       return;
     }
 
+    // Check any "Custom" rows have actual text filled in
+    const missingCustom = valid.some(
+      (item) => item.type === CUSTOM_SENTINEL && !item.custom.trim(),
+    );
+    if (missingCustom) {
+      setError("Enter a name for the custom item.");
+      return;
+    }
+
     const totalCount = valid.reduce((sum, item) => sum + parseInt(item.count, 10), 0);
-    const itemSummary = valid.map((item) => `${item.count}× ${item.type}`).join(", ");
+    const itemSummary = valid.map((item) => `${item.count}× ${resolvedType(item)}`).join(", ");
     const description = notes.trim() ? `${itemSummary}\n${notes.trim()}` : itemSummary;
 
     const fd = new FormData();
     fd.set("_action", "activate");
     fd.set("ticketId", ticket.id);
-    fd.set("itemType", valid[0].type);
+    fd.set("itemType", resolvedType(valid[0]));
     fd.set("itemCount", String(totalCount));
     fd.set("itemDescription", description);
 
@@ -129,45 +149,59 @@ function ActivationForm({
         </p>
         <div className="space-y-2">
           {items.map((item, i) => (
-            <div className="flex items-center gap-2" key={i}>
-              {/* Type dropdown — grows to fill available space */}
-              <select
-                className={`${fieldClass} min-w-0 flex-1`}
-                onChange={(e) => updateLine(i, "type", e.target.value)}
-                required
-                value={item.type}
-              >
-                <option value="" disabled>Item type</option>
-                {ITEM_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-
-              {/* Qty — digits only, 1-99 */}
-              <input
-                className={`${fieldClass} w-14 shrink-0 text-center`}
-                inputMode="numeric"
-                maxLength={2}
-                onChange={(e) => {
-                  // Strip anything that isn't a digit
-                  const digits = e.target.value.replace(/\D/g, "");
-                  if (digits === "") { updateLine(i, "count", ""); return; }
-                  const n = Math.min(Math.max(parseInt(digits, 10), 1), 99);
-                  updateLine(i, "count", String(n));
-                }}
-                placeholder="1"
-                type="text"
-                value={item.count}
-              />
-
-              {items.length > 1 && (
-                <button
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-foreground/30 hover:text-foreground"
-                  onClick={() => removeLine(i)}
-                  type="button"
+            <div className="flex flex-col gap-1.5" key={i}>
+              <div className="flex items-center gap-2">
+                {/* Type dropdown */}
+                <select
+                  className={`${fieldClass} min-w-0 flex-1`}
+                  onChange={(e) => updateLine(i, "type", e.target.value)}
+                  required
+                  value={item.type}
                 >
-                  ×
-                </button>
+                  <option value="" disabled>Item type</option>
+                  {PRESET_ITEM_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                  <option value={CUSTOM_SENTINEL}>Custom…</option>
+                </select>
+
+                {/* Qty — digits only, 1-99 */}
+                <input
+                  className={`${fieldClass} w-14 shrink-0 text-center`}
+                  inputMode="numeric"
+                  maxLength={2}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    if (digits === "") { updateLine(i, "count", ""); return; }
+                    const n = Math.min(Math.max(parseInt(digits, 10), 1), 99);
+                    updateLine(i, "count", String(n));
+                  }}
+                  placeholder="1"
+                  type="text"
+                  value={item.count}
+                />
+
+                {items.length > 1 && (
+                  <button
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-foreground/30 hover:text-foreground"
+                    onClick={() => removeLine(i)}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {/* Custom label — appears below the row when "Custom…" is chosen */}
+              {item.type === CUSTOM_SENTINEL && (
+                <input
+                  autoFocus
+                  className={`${fieldClass} w-full`}
+                  onChange={(e) => updateLine(i, "custom", e.target.value)}
+                  placeholder="Describe the item (e.g. Pushchair, Scooter…)"
+                  type="text"
+                  value={item.custom}
+                />
               )}
             </div>
           ))}

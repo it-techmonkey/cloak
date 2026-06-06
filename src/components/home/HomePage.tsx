@@ -53,18 +53,26 @@ function PublicHeader() {
 function PublicFooter() {
   return (
     <footer className="border-t border-line bg-white">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-6 text-sm sm:px-6 lg:px-8">
-        <p className="font-semibold text-foreground">Cloak</p>
-        <div className="flex gap-4 text-muted">
-          <Link className="hover:text-foreground" href="/venuesignup">
-            For venues
-          </Link>
-          <Link className="hover:text-foreground" href="/login">
-            Staff login
-          </Link>
-          <Link className="hover:text-foreground" href="/register-interest">
-            Contact
-          </Link>
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold text-foreground">Cloak</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
+            <Link className="hover:text-foreground" href="/venuesignup">
+              For venues
+            </Link>
+            <Link className="hover:text-foreground" href="/venuedashboard">
+              Venue dashboard
+            </Link>
+            <Link className="hover:text-foreground" href="/masterdashboard">
+              Admin dashboard
+            </Link>
+            <Link className="hover:text-foreground" href="/login">
+              Login
+            </Link>
+            <Link className="hover:text-foreground" href="/register-interest">
+              Contact
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

@@ -85,6 +85,11 @@ export default function TicketPage({ ticket }: { ticket: TicketView }) {
                 ),
               )}
             </div>
+            {extractNotes(ticket.itemDescription) ? (
+              <p className="mt-3 border-t border-line pt-3 text-xs leading-5 text-muted">
+                {extractNotes(ticket.itemDescription)}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -118,6 +123,14 @@ export default function TicketPage({ ticket }: { ticket: TicketView }) {
       </main>
     </div>
   );
+}
+
+function extractNotes(description: string | null): string | null {
+  if (!description) return null;
+  const idx = description.indexOf("\n");
+  if (idx === -1) return null;
+  const notes = description.slice(idx + 1).trim();
+  return notes || null;
 }
 
 function parseItemLines(
