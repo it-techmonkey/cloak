@@ -295,30 +295,37 @@ async function handleLookup(formData: FormData): Promise<ScannerState> {
   return ticketReadyState(ticket, venueName);
 }
 
-async function claimAvailableSlot(supabase: SupabaseAdmin, venueId: string) {
-  // Find the lowest-label available slot for this venue
-  const { data: slot } = await supabase
-    .from("venue_slots")
-    .select("id, label")
+async function assignNextSlotNumber(supabase: SupabaseAdmin, venueId: string): Promise<string | null> {
+  // Get venue capacity — defines valid slot range 1..capacity
+  const { data: venue } = await supabase
+    .from("venues")
+    .select("capacity")
+    .eq("id", venueId)
+    .maybeSingle();
+
+  const capacity = venue?.capacity ?? 0;
+  if (capacity < 1) return null;
+
+  // Get all slot numbers currently in use by active tickets at this venue
+  const { data: activeTickets } = await supabase
+    .from("tickets")
+    .select("storage_location")
     .eq("venue_id", venueId)
-    .eq("status", "available")
-    .eq("active", true)
-    .order("label", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .eq("status", "active")
+    .not("storage_location", "is", null);
 
-  if (!slot) return null;
+  const usedNumbers = new Set(
+    (activeTickets ?? [])
+      .map((t) => parseInt(t.storage_location ?? "", 10))
+      .filter((n) => !isNaN(n)),
+  );
 
-  // Atomically mark it occupied — only succeeds if still available
-  const { data: claimed } = await supabase
-    .from("venue_slots")
-    .update({ status: "occupied" })
-    .eq("id", slot.id)
-    .eq("status", "available")
-    .select("id, label")
-    .maybeSingle();
+  // Find the lowest available number from 1..capacity
+  for (let n = 1; n <= capacity; n++) {
+    if (!usedNumbers.has(n)) return String(n);
+  }
 
-  return claimed ?? null;
+  return null; // All slots occupied
 }
 
 async function handleActivation(formData: FormData): Promise<ScannerState> {
@@ -374,11 +381,11 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
     };
   }
 
-  // Auto-assign next available cloak slot
-  const slot = await claimAvailableSlot(context.supabase, ticket.venue_id);
-  if (!slot) {
+  // Auto-assign the next free slot number based on venue capacity
+  const slotNumber = await assignNextSlotNumber(context.supabase, ticket.venue_id);
+  if (!slotNumber) {
     return {
-      message: "No cloakroom slots are available. Please free a slot first.",
+      message: "All cloakroom slots are currently occupied. Please complete a checkout first.",
       status: "error",
     };
   }
@@ -389,12 +396,11 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
     .update({
       activated_at: activatedAt,
       activation_confirmed_by: context.guard.userId,
-      assigned_slot_id: slot.id,
       item_count: itemCount,
       item_description: itemDescription || null,
       item_type: itemType,
       status: "active",
-      storage_location: slot.label,
+      storage_location: slotNumber,
     })
     .eq("id", ticket.id)
     .eq("status", "pending_activation")
@@ -402,11 +408,6 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
     .single();
 
   if (error || !updatedTicket) {
-    // Release the slot we just claimed since ticket update failed
-    await context.supabase
-      .from("venue_slots")
-      .update({ status: "available" })
-      .eq("id", slot.id);
     return { message: "Ticket activation failed. Please refresh and try again.", status: "error" };
   }
 
@@ -420,7 +421,7 @@ async function handleActivation(formData: FormData): Promise<ScannerState> {
   revalidatePath("/ticket");
 
   return {
-    message: `Ticket activated. Cloak ${slot.label} assigned.`,
+    message: `Ticket activated. Cloak number ${slotNumber} assigned.`,
     status: "success",
     ticket: toScannerTicket(updatedTicket, venueName),
   };
@@ -474,12 +475,8 @@ async function handleCheckout(formData: FormData): Promise<ScannerState> {
     return { message: "Ticket checkout failed. Please refresh and try again.", status: "error" };
   }
 
-  if (ticket.assigned_slot_id) {
-    await context.supabase
-      .from("venue_slots")
-      .update({ status: "available" })
-      .eq("id", ticket.assigned_slot_id);
-  }
+  // Slot is freed implicitly — ticket.status changes to "collected" so it
+  // no longer appears in the active-ticket query used by assignNextSlotNumber.
 
   await writeAcceptedScan({
     scanType: "checkout",
