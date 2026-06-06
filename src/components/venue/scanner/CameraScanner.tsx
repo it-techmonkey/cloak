@@ -198,7 +198,7 @@ export default function CameraScanner({
             onClick={startCamera}
             type="button"
           >
-            {status === "starting" ? "Starting…" : "Start camera"}
+            Start camera
           </button>
         )}
       </div>
