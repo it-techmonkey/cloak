@@ -4,45 +4,30 @@ import PageShell from "@/components/shared/PageShell";
 import Panel from "@/components/shared/Panel";
 import StatusPill from "@/components/shared/StatusPill";
 import type { VenueDashboardData } from "@/lib/venue-dashboard";
+import LiveDashboardStats, { type LiveCounts } from "./LiveDashboardStats";
 import TodayTickets from "./TodayTickets";
-import VenueStats from "./VenueStats";
 
 export default function VenueDashboardPage({ data }: { data: VenueDashboardData }) {
   if (data.isManager) return <ManagerDashboard data={data} />;
   return <StaffDashboard data={data} />;
 }
 
-// ─── Shared pending alert ──────────────────────────────────────────────────────
-
-function PendingAlert({ count }: { count: number }) {
-  if (count === 0) return null;
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-      <div className="flex items-center gap-3">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-white">
-          {count}
-        </span>
-        <p className="text-sm font-medium text-amber-900">
-          {count === 1
-            ? "1 guest is waiting at the counter to activate their pass."
-            : `${count} guests are waiting at the counter to activate their passes.`}
-        </p>
-      </div>
-      <Link
-        className="shrink-0 rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500"
-        href="/venuescanner"
-      >
-        Open scanner
-      </Link>
-    </div>
-  );
+function buildInitialCounts(data: VenueDashboardData): LiveCounts {
+  const get = (label: string) =>
+    Number(data.stats.find((s) => s.label === label)?.value ?? 0);
+  return {
+    capacity: data.venue?.capacity ?? 0,
+    collected: get("Collected"),
+    forgotten: get("Forgotten"),
+    pending: get("Pending"),
+    stored: get("Stored"),
+    today: get("Today"),
+  };
 }
 
 // ─── Staff view ────────────────────────────────────────────────────────────────
 
 function StaffDashboard({ data }: { data: VenueDashboardData }) {
-  const pendingCount = Number(data.stats.find((s) => s.label === "Pending")?.value ?? 0);
-
   return (
     <PageShell
       activePath="/venuedashboard"
@@ -51,8 +36,11 @@ function StaffDashboard({ data }: { data: VenueDashboardData }) {
       venueRole="staff"
       actions={<PrimaryLink href="/venuescanner">Open scanner</PrimaryLink>}
     >
-      <PendingAlert count={pendingCount} />
-      <VenueStats stats={data.stats} />
+      <LiveDashboardStats
+        initialCounts={buildInitialCounts(data)}
+        showCapacityBar={false}
+        venueId={data.venue?.id ?? null}
+      />
       <TodayTickets data={data} />
     </PageShell>
   );
@@ -61,10 +49,6 @@ function StaffDashboard({ data }: { data: VenueDashboardData }) {
 // ─── Manager view ───────────────────────────────────────────────────────────────
 
 function ManagerDashboard({ data }: { data: VenueDashboardData }) {
-  const pendingCount = Number(data.stats.find((s) => s.label === "Pending")?.value ?? 0);
-  const storedCount = Number(data.stats.find((s) => s.label === "Stored")?.value ?? 0);
-  const capacity = data.venue?.capacity ?? 0;
-
   return (
     <PageShell
       activePath="/venuedashboard"
@@ -79,37 +63,16 @@ function ManagerDashboard({ data }: { data: VenueDashboardData }) {
         </>
       }
     >
-      <PendingAlert count={pendingCount} />
-      <VenueStats stats={data.stats} />
-      {capacity > 0 && <CapacityBar used={storedCount} total={capacity} />}
+      <LiveDashboardStats
+        initialCounts={buildInitialCounts(data)}
+        showCapacityBar={true}
+        venueId={data.venue?.id ?? null}
+      />
       <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
         <TodayTickets data={data} />
         <StaffRoster staff={data.staff} />
       </div>
     </PageShell>
-  );
-}
-
-function CapacityBar({ used, total }: { used: number; total: number }) {
-  const pct = Math.min(Math.round((used / total) * 100), 100);
-  const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500";
-
-  return (
-    <div className="rounded-xl border border-line bg-panel px-5 py-4">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-foreground">Cloak slots in use</span>
-        <span className="tabular-nums text-muted">
-          {used} / {total}
-        </span>
-      </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className={`h-full rounded-full transition-all ${color}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <p className="mt-2 text-xs text-muted">{total - used} slots available</p>
-    </div>
   );
 }
 

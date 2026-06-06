@@ -1,5 +1,8 @@
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import { createClient } from "@/lib/supabase/client";
 import TicketDetails from "./TicketDetails";
-import TicketQrCard from "./TicketQrCard";
 
 export type TicketView = {
   email: string;
@@ -17,7 +20,46 @@ export type TicketView = {
   venueName: string;
 };
 
-export default function TicketPage({ ticket }: { ticket: TicketView }) {
+export default function TicketPage({
+  ticket: initial,
+  qrCard,
+}: {
+  ticket: TicketView;
+  qrCard: ReactNode;
+}) {
+  const [ticket, setTicket] = useState<TicketView>(initial);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`ticket:${initial.ticketId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "tickets",
+          filter: `public_code=eq.${initial.ticketId}`,
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          setTicket((prev) => ({
+            ...prev,
+            status: (row.status as TicketView["status"]) ?? prev.status,
+            storageLocation: (row.storage_location as string | null) ?? null,
+            itemType: (row.item_type as string | null) ?? prev.itemType,
+            itemCount: typeof row.item_count === "number" ? row.item_count : prev.itemCount,
+            itemDescription: (row.item_description as string | null) ?? null,
+          }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [initial.ticketId]);
+
   const isActive = ticket.status === "active";
   const isCollected = ticket.status === "collected";
   const isExpired = ticket.status === "expired";
@@ -93,7 +135,9 @@ export default function TicketPage({ ticket }: { ticket: TicketView }) {
           </div>
         ) : null}
 
-        <TicketQrCard ticket={ticket} />
+        {/* QR card — rendered server-side, passed as a child */}
+        {qrCard}
+
         <TicketDetails ticket={ticket} />
 
         {!isClosed ? (
@@ -117,9 +161,6 @@ export default function TicketPage({ ticket }: { ticket: TicketView }) {
           </div>
         ) : null}
 
-        <p className="text-center text-xs text-muted">
-          Refresh this page to see the latest status.
-        </p>
       </main>
     </div>
   );

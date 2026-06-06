@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import TicketPage from "@/components/ticket/TicketPage";
+import TicketQrCard from "@/components/ticket/TicketQrCard";
 import TicketUnavailablePage from "@/components/ticket/TicketUnavailablePage";
 import { getPublicTicketByCode, getPublicTicketByToken } from "@/lib/tickets";
 
@@ -25,13 +26,12 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     const result = await getPublicTicketByToken(token);
 
     if (result.ticket) {
+      const ticketView = {
+        ...result.ticket,
+        qrValue: `${origin}/ticket?token=${encodeURIComponent(token)}`,
+      };
       return (
-        <TicketPage
-          ticket={{
-            ...result.ticket,
-            qrValue: `${origin}/ticket?token=${encodeURIComponent(token)}`,
-          }}
-        />
+        <TicketPage ticket={ticketView} qrCard={<TicketQrCard ticket={ticketView} />} />
       );
     }
 
@@ -42,13 +42,12 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     const result = await getPublicTicketByCode(code);
 
     if (result.ticket) {
+      const ticketView = {
+        ...result.ticket,
+        qrValue: `${origin}/ticket?code=${encodeURIComponent(result.ticket.ticketId)}`,
+      };
       return (
-        <TicketPage
-          ticket={{
-            ...result.ticket,
-            qrValue: `${origin}/ticket?code=${encodeURIComponent(result.ticket.ticketId)}`,
-          }}
-        />
+        <TicketPage ticket={ticketView} qrCard={<TicketQrCard ticket={ticketView} />} />
       );
     }
 

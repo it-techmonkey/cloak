@@ -316,13 +316,18 @@ async function assignNextSlotNumber(supabase: SupabaseAdmin, venueId: string): P
 
   const usedNumbers = new Set(
     (activeTickets ?? [])
-      .map((t) => parseInt(t.storage_location ?? "", 10))
+      .map((t) => {
+        const loc = t.storage_location ?? "";
+        // Support both legacy plain numbers and new "h<n>" format
+        const raw = loc.startsWith("h") ? loc.slice(1) : loc;
+        return parseInt(raw, 10);
+      })
       .filter((n) => !isNaN(n)),
   );
 
   // Find the lowest available number from 1..capacity
   for (let n = 1; n <= capacity; n++) {
-    if (!usedNumbers.has(n)) return String(n);
+    if (!usedNumbers.has(n)) return `h${n}`;
   }
 
   return null; // All slots occupied

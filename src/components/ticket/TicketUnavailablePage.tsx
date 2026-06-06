@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SecondaryLink } from "@/components/shared/ButtonLink";
 import Panel from "@/components/shared/Panel";
 import StatusPill from "@/components/shared/StatusPill";
@@ -8,8 +9,14 @@ export default function TicketUnavailablePage({
   reason: "invalid" | "expired";
 }) {
   return (
-    <div className="min-h-screen bg-night text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-8">
+        <Link
+          className="mb-6 inline-flex items-center gap-1 text-sm text-muted hover:text-foreground"
+          href="/"
+        >
+          ← Back to home
+        </Link>
         <Panel>
           <div className="grid gap-4">
             <StatusPill tone={reason === "expired" ? "warning" : "danger"}>

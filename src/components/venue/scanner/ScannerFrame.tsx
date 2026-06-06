@@ -15,10 +15,10 @@ const PRESET_ITEM_TYPES = [
   "Electronics",
   "Sports equipment",
   "Package",
-  "Other",
 ];
 
-const CUSTOM_SENTINEL = "__custom__";
+// Sentinel value for the "Other" free-text option — never saved to DB
+const OTHER_SENTINEL = "__other__";
 
 const AUTO_RESET_MS = 5000;
 
@@ -100,7 +100,7 @@ function ActivationForm({
 
   // Resolve the display label for an item — custom text takes over when selected
   function resolvedType(item: ItemLine): string {
-    return item.type === CUSTOM_SENTINEL ? item.custom.trim() : item.type;
+    return item.type === OTHER_SENTINEL ? item.custom.trim() : item.type;
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -119,10 +119,10 @@ function ActivationForm({
 
     // Check any "Custom" rows have actual text filled in
     const missingCustom = valid.some(
-      (item) => item.type === CUSTOM_SENTINEL && !item.custom.trim(),
+      (item) => item.type === OTHER_SENTINEL && !item.custom.trim(),
     );
     if (missingCustom) {
-      setError("Enter a name for the custom item.");
+      setError("Specify what the item is for the 'Other' row.");
       return;
     }
 
@@ -162,7 +162,7 @@ function ActivationForm({
                   {PRESET_ITEM_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
-                  <option value={CUSTOM_SENTINEL}>Custom…</option>
+                  <option value={OTHER_SENTINEL}>Other</option>
                 </select>
 
                 {/* Qty — digits only, 1-99 */}
@@ -193,12 +193,12 @@ function ActivationForm({
               </div>
 
               {/* Custom label — appears below the row when "Custom…" is chosen */}
-              {item.type === CUSTOM_SENTINEL && (
+              {item.type === OTHER_SENTINEL && (
                 <input
                   autoFocus
                   className={`${fieldClass} w-full`}
                   onChange={(e) => updateLine(i, "custom", e.target.value)}
-                  placeholder="Describe the item (e.g. Pushchair, Scooter…)"
+                  placeholder="Specify item (e.g. Pushchair, Scooter, Musical instrument…)"
                   type="text"
                   value={item.custom}
                 />

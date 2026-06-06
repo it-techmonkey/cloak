@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { signInWithPassword } from "@/app/login/actions";
 import Panel from "@/components/shared/Panel";
 import StatusPill from "@/components/shared/StatusPill";
@@ -14,7 +15,13 @@ export default function LoginPage({
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-8">
         <div className="mb-6 text-center">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-foreground text-sm font-bold text-white shadow">
+          <Link
+            className="mb-6 inline-flex items-center gap-1 text-sm text-muted hover:text-foreground"
+            href="/"
+          >
+            ← Back to home
+          </Link>
+          <div className="mx-auto mt-4 grid h-12 w-12 place-items-center rounded-2xl bg-foreground text-sm font-bold text-white shadow">
             CL
           </div>
           <h1 className="mt-4 text-3xl font-semibold">Sign in</h1>
@@ -46,8 +53,14 @@ export default function LoginPage({
                 type="password"
               />
             </label>
-            <SubmitButton>Sign in securely</SubmitButton>
-            {message ? <StatusPill tone="blue">{message}</StatusPill> : null}
+            <SubmitButton>Sign in</SubmitButton>
+            {message ? (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-700">
+                {message === "signin-failed"
+                  ? "Incorrect email or password."
+                  : "Sign in is temporarily unavailable."}
+              </p>
+            ) : null}
           </form>
         </Panel>
       </main>
