@@ -465,6 +465,10 @@ export async function handleScannerAction(
   try {
     const action = readField(formData, "_action");
 
+    if (action === "reset") {
+      return { message: "", status: "idle" };
+    }
+
     if (action === "activate") {
       return handleActivation(formData);
     }

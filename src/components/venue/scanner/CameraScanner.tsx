@@ -21,14 +21,12 @@ type BarcodeWindow = Window &
 
 function cameraErrorMessage(error: unknown) {
   if (error instanceof DOMException && error.name === "NotAllowedError") {
-    return "Camera permission was denied. Enter the fallback code instead.";
+    return "Camera permission denied. Use the fallback code below.";
   }
-
   if (error instanceof DOMException && error.name === "NotFoundError") {
-    return "No camera was found on this device. Enter the fallback code instead.";
+    return "No camera found on this device. Use the fallback code below.";
   }
-
-  return "Camera scanning is unavailable. Enter the fallback code instead.";
+  return "Camera unavailable. Use the fallback code below.";
 }
 
 export default function CameraScanner({
@@ -38,7 +36,7 @@ export default function CameraScanner({
   disabled: boolean;
   onDetected: (value: string) => void;
 }) {
-  const [message, setMessage] = useState("Start camera scanning when the guest is at the counter.");
+  const [message, setMessage] = useState<string | null>(null);
   const [status, setStatus] = useState<CameraStatus>("idle");
   const detectedRef = useRef(false);
   const frameRef = useRef<number | null>(null);
@@ -50,32 +48,25 @@ export default function CameraScanner({
       cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
     }
-
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    if (videoRef.current) videoRef.current.srcObject = null;
   }
 
   useEffect(() => stopCamera, []);
 
   async function startCamera() {
-    if (disabled || status === "starting" || status === "scanning") {
-      return;
-    }
+    if (disabled || status === "starting" || status === "scanning") return;
 
     const BarcodeDetector = (window as BarcodeWindow).BarcodeDetector;
-
     if (!navigator.mediaDevices?.getUserMedia || !BarcodeDetector) {
       setStatus("unsupported");
-      setMessage("Camera QR scanning is not supported in this browser. Enter the fallback code instead.");
+      setMessage("QR camera scanning is not supported in this browser.");
       return;
     }
 
     setStatus("starting");
-    setMessage("Starting camera...");
+    setMessage(null);
     detectedRef.current = false;
 
     try {
@@ -85,47 +76,36 @@ export default function CameraScanner({
       });
       const detector = new BarcodeDetector({ formats: ["qr_code"] });
       const video = videoRef.current;
-
-      if (!video) {
-        stopCamera();
-        return;
-      }
+      if (!video) { stopCamera(); return; }
 
       streamRef.current = stream;
       video.srcObject = stream;
       await video.play();
-
       setStatus("scanning");
-      setMessage("Point the camera at the guest QR code.");
+      setMessage(null);
 
       const scanFrame = async () => {
-        if (!videoRef.current || detectedRef.current) {
-          return;
-        }
-
+        if (!videoRef.current || detectedRef.current) return;
         if (videoRef.current.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
           try {
             const results = await detector.detect(videoRef.current);
             const value = results[0]?.rawValue?.trim();
-
             if (value) {
               detectedRef.current = true;
-              setMessage("QR detected. Verifying ticket...");
               stopCamera();
+              setStatus("idle");
               onDetected(value);
               return;
             }
           } catch {
             setStatus("error");
-            setMessage("Camera scanning stopped. Enter the fallback code instead.");
+            setMessage("Camera error. Use the fallback code below.");
             stopCamera();
             return;
           }
         }
-
         frameRef.current = requestAnimationFrame(scanFrame);
       };
-
       frameRef.current = requestAnimationFrame(scanFrame);
     } catch (error) {
       setStatus("error");
@@ -134,52 +114,93 @@ export default function CameraScanner({
     }
   }
 
+  const isActive = status === "scanning" || status === "starting";
+
   return (
-    <div className="rounded-lg border border-slate-700 bg-[#101a2c] p-4">
-      <div className="relative grid min-h-56 place-items-center overflow-hidden rounded-lg bg-[#1c2b43]">
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
+      {/* Camera viewport */}
+      <div className="relative aspect-video w-full bg-black">
         <video
           aria-label="QR camera preview"
-          className="h-full min-h-56 w-full object-cover"
+          className="h-full w-full object-cover"
           muted
           playsInline
           ref={videoRef}
         />
-        {status !== "scanning" ? (
-          <div className="absolute inset-0 grid place-items-center bg-[#1c2b43]">
-            <div className="grid h-40 w-40 place-items-center rounded-lg border-2 border-brand shadow-inner">
-              <span className="text-xs font-semibold uppercase tracking-normal text-white/60">
+
+        {/* Overlay when not scanning */}
+        {!isActive && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black">
+            <div className="relative h-36 w-36">
+              {/* Corner marks */}
+              {[
+                "top-0 left-0 border-t-2 border-l-2 rounded-tl-lg",
+                "top-0 right-0 border-t-2 border-r-2 rounded-tr-lg",
+                "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-lg",
+                "bottom-0 right-0 border-b-2 border-r-2 rounded-br-lg",
+              ].map((cls) => (
+                <span
+                  key={cls}
+                  className={`absolute h-6 w-6 border-white/30 ${cls}`}
+                />
+              ))}
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tracking-widest text-white/20 uppercase">
                 QR
               </span>
             </div>
+            {message ? (
+              <p className="text-center text-xs text-white/40 px-6">{message}</p>
+            ) : (
+              <p className="text-center text-xs text-white/25 px-6">
+                Camera inactive
+              </p>
+            )}
           </div>
-        ) : (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <div className="h-40 w-40 rounded-lg border-2 border-brand shadow-[0_0_0_999px_rgba(0,0,0,0.28)]" />
+        )}
+
+        {/* Scanning crosshair overlay */}
+        {status === "scanning" && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="relative h-48 w-48">
+              {[
+                "top-0 left-0 border-t-2 border-l-2 rounded-tl-lg",
+                "top-0 right-0 border-t-2 border-r-2 rounded-tr-lg",
+                "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-lg",
+                "bottom-0 right-0 border-b-2 border-r-2 rounded-br-lg",
+              ].map((cls) => (
+                <span key={cls} className={`absolute h-8 w-8 border-white ${cls}`} />
+              ))}
+            </div>
           </div>
         )}
       </div>
-      <p className="mt-3 text-center text-sm text-slate-300">{message}</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <button
-          className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={disabled || status === "starting" || status === "scanning"}
-          onClick={startCamera}
-          type="button"
-        >
-          Start camera
-        </button>
-        <button
-          className="rounded-lg border border-slate-600 bg-transparent px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={status !== "scanning" && status !== "starting"}
-          onClick={() => {
-            stopCamera();
-            setStatus("idle");
-            setMessage("Camera stopped. Enter the fallback code or start scanning again.");
-          }}
-          type="button"
-        >
-          Stop camera
-        </button>
+
+      {/* Controls */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        {isActive ? (
+          <>
+            <span className="flex items-center gap-2 text-xs text-white/50">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+              Scanning…
+            </span>
+            <button
+              className="ml-auto rounded-lg border border-white/10 px-4 py-1.5 text-xs font-medium text-white/50 hover:border-white/20 hover:text-white/80"
+              onClick={() => { stopCamera(); setStatus("idle"); setMessage(null); }}
+              type="button"
+            >
+              Stop
+            </button>
+          </>
+        ) : (
+          <button
+            className="w-full rounded-lg bg-white/10 py-2 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-40"
+            disabled={disabled}
+            onClick={startCamera}
+            type="button"
+          >
+            {status === "starting" ? "Starting…" : "Start camera"}
+          </button>
+        )}
       </div>
     </div>
   );

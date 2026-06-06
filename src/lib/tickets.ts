@@ -12,8 +12,12 @@ export type PublicTicket = {
   email: string;
   expiresAt: string;
   guestName: string;
+  itemCount: number;
+  itemDescription: string | null;
+  itemType: string | null;
   mobile: string;
   status: "pending_activation" | "active" | "collected" | "cancelled" | "expired";
+  storageLocation: string | null;
   ticketId: string;
   venueId: string;
   venueName: string;
@@ -57,8 +61,7 @@ function normalizeTicketStatus(ticket: {
 }) {
   if (
     ticket.status === "pending_activation" &&
-    new Date(ticket.expires_at).getTime() < Date.now() &&
-    !["collected", "cancelled", "expired"].includes(ticket.status)
+    new Date(ticket.expires_at).getTime() < Date.now()
   ) {
     return "expired";
   }
@@ -74,7 +77,9 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("tickets")
-    .select("public_code, guest_email, guest_name, guest_phone, status, venue_id, expires_at")
+    .select(
+      "public_code, guest_email, guest_name, guest_phone, status, venue_id, expires_at, item_type, item_count, item_description, storage_location",
+    )
     .eq(column, value)
     .maybeSingle();
 
@@ -96,12 +101,16 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
       email: data.guest_email,
       expiresAt: data.expires_at,
       guestName: data.guest_name,
+      itemCount: data.item_count,
+      itemDescription: data.item_description,
+      itemType: data.item_type,
       mobile: data.guest_phone,
       status,
+      storageLocation: data.storage_location,
       ticketId: data.public_code,
       venueId: venue?.slug ?? data.venue_id,
       venueName: venue?.name ?? "Selected venue",
-    },
+    } satisfies PublicTicket,
   };
 }
 
