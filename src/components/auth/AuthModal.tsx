@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { resolvePostLoginRedirect } from "@/lib/auth/resolve-redirect";
 
 type Mode = "signin" | "signup";
 
@@ -157,11 +156,16 @@ export default function AuthModal({
 
       onClose();
 
-      // Role-based redirect after email sign-in
+      // Fetch role-based destination from server (session cookie is now set)
       const params = new URLSearchParams(window.location.search);
-      const nextParam = params.get("next") ?? "/";
-      const destination = await resolvePostLoginRedirect(signInData.user.id, nextParam);
-      router.push(destination);
+      const explicitNext = params.get("next");
+      const res = await fetch("/api/auth/role");
+      const { destination } = await res.json() as { destination: string };
+      // For customers, honour an explicit ?next= if present
+      const finalDestination = (destination === "/" && explicitNext && explicitNext.startsWith("/"))
+        ? explicitNext
+        : destination;
+      router.push(finalDestination);
       router.refresh();
     });
   }
