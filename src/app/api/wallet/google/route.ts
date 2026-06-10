@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getPublicTicketByCode, getPublicTicketByToken } from "@/lib/tickets";

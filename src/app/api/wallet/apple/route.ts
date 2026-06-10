@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 import { PKPass } from "passkit-generator";
 import { getPublicTicketByCode, getPublicTicketByToken } from "@/lib/tickets";
