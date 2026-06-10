@@ -1,11 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  // If Supabase isn't configured, pass through
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.next({ request });
   }
@@ -29,7 +28,6 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Refreshes the session token on every request
   await supabase.auth.getUser();
 
   return response;
