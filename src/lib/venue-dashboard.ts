@@ -47,10 +47,14 @@ export type UserProfile = {
   phone: string | null;
 };
 
+export type VenueApprovalStatus = "pending" | "approved" | "rejected" | "suspended";
+
 export type VenueDashboardData = {
   activeFilter: TicketFilter;
+  approvalStatus: VenueApprovalStatus;
   isManager: boolean;
   profile: UserProfile | null;
+  queryMessage: string | null;
   search: string;
   staff: VenueStaffMember[];
   stats: Array<{ helper?: string; label: string; value: string; tone: StatusTone }>;
@@ -96,7 +100,9 @@ function emptyVenueDashboardData(
 ): VenueDashboardData {
   return {
     activeFilter,
+    approvalStatus: "pending",
     isManager: false,
+    queryMessage: null,
     search,
     staff: [],
     stats: [
@@ -162,7 +168,7 @@ function isManagerContext(context: AuthorizedContext) {
 async function getVenueMeta(supabase: SupabaseAdmin, venueIds: string[] | null) {
   let query = supabase
     .from("venues")
-    .select("id, name, capacity, address, city, postal_code, contact_email, contact_phone, billing_plan, slug")
+    .select("id, name, capacity, address, city, postal_code, contact_email, contact_phone, billing_plan, slug, approval_status, rejection_reason")
     .order("name");
 
   if (venueIds) query = query.in("id", venueIds);
@@ -172,7 +178,12 @@ async function getVenueMeta(supabase: SupabaseAdmin, venueIds: string[] | null) 
   const capacity = venues.reduce((s, v) => s + v.capacity, 0);
   const first = venues[0] ?? null;
 
+  const approvalStatus = (first?.approval_status ?? "pending") as VenueApprovalStatus;
+  const queryMessage =
+    approvalStatus === "pending" ? (first?.rejection_reason ?? null) : null;
+
   return {
+    approvalStatus,
     capacity,
     label:
       venues.length === 0
@@ -180,6 +191,7 @@ async function getVenueMeta(supabase: SupabaseAdmin, venueIds: string[] | null) 
         : venues.length === 1
           ? first!.name
           : `${venues.length} venues`,
+    queryMessage,
     venue: first
       ? ({
           address: first.address,
@@ -328,8 +340,10 @@ export async function getVenueDashboardData({
 
   return {
     activeFilter,
+    approvalStatus: venueMeta.approvalStatus,
     isManager: isManagerContext(context),
     profile,
+    queryMessage: venueMeta.queryMessage,
     search: normalizedSearch,
     staff: staffList,
     stats: [

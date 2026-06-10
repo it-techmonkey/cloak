@@ -1,0 +1,104 @@
+import { NextRequest, NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+import { getPublicTicketByCode, getPublicTicketByToken } from "@/lib/tickets";
+
+function isConfigured() {
+  return !!(
+    process.env.GOOGLE_WALLET_ISSUER_ID &&
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+  );
+}
+
+export async function GET(req: NextRequest) {
+  if (!isConfigured()) {
+    return NextResponse.json(
+      { error: "Google Wallet is not configured on this server." },
+      { status: 503 },
+    );
+  }
+
+  const { searchParams } = req.nextUrl;
+  const code = searchParams.get("code");
+  const token = searchParams.get("token");
+
+  const result = code
+    ? await getPublicTicketByCode(code)
+    : token
+      ? await getPublicTicketByToken(token)
+      : { status: "invalid" as const, ticket: null };
+
+  if (!result.ticket) {
+    return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
+  }
+
+  const t = result.ticket;
+  const issuerId = process.env.GOOGLE_WALLET_ISSUER_ID!;
+  const classId = `${issuerId}.cloak_ticket`;
+  const objectId = `${issuerId}.${t.ticketId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+
+  const genericObject = {
+    id: objectId,
+    classId,
+    state: "ACTIVE",
+    cardTitle: {
+      defaultValue: { language: "en", value: "Cloak" },
+    },
+    header: {
+      defaultValue: { language: "en", value: t.venueName },
+    },
+    subheader: {
+      defaultValue: {
+        language: "en",
+        value:
+          t.status === "active"
+            ? `Stored — ${t.storageLocation ?? t.itemType ?? "Items"}`
+            : t.status === "pending_activation"
+              ? "Awaiting activation"
+              : t.status === "collected"
+                ? "Collected"
+                : t.status ?? "Cloak ticket",
+      },
+    },
+    textModulesData: [
+      { id: "guest", header: "GUEST", body: t.guestName },
+      { id: "items", header: "ITEMS", body: t.itemType ?? "Items" },
+      { id: "ticket_id", header: "TICKET ID", body: t.ticketId },
+      { id: "email", header: "EMAIL", body: t.email },
+      ...(t.storageLocation
+        ? [{ id: "cloak_no", header: "CLOAK NO.", body: t.storageLocation }]
+        : []),
+    ],
+    barcode: {
+      type: "QR_CODE",
+      value: t.ticketId,
+      alternateText: t.ticketId,
+    },
+    validTimeInterval: {
+      end: { date: new Date(t.expiresAt).toISOString() },
+    },
+    hexBackgroundColor: "#18181b",
+  };
+
+  const payload = {
+    iss: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!,
+    aud: "google",
+    origins: [],
+    typ: "savetowallet",
+    payload: {
+      genericObjects: [genericObject],
+    },
+  };
+
+  // Replace escaped newlines in the private key (common when stored in env vars)
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY!.replace(/\\n/g, "\n");
+
+  const token_jwt = jwt.sign(payload, privateKey, {
+    algorithm: "RS256",
+  });
+
+  const saveUrl = `https://pay.google.com/gp/v/save/${token_jwt}`;
+
+  // Redirect directly to the Google Wallet save page
+  return NextResponse.redirect(saveUrl, { status: 302 });
+}

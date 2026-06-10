@@ -21,6 +21,8 @@ export type VenueSignupDraft = {
   contactEmail: string;
   contactPhone: string;
   country: string;
+  latitude?: number | null;
+  longitude?: number | null;
   postalCode: string;
   venueName: string;
 };

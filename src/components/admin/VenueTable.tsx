@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import {
   approveVenue,
-  rejectVenue,
+  queryVenue,
   suspendVenue,
 } from "@/app/masterdashboard/actions";
 import Panel from "@/components/shared/Panel";
@@ -49,6 +49,66 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+// ─── Query thread parsing ─────────────────────────────────────────────────────
+
+type ThreadTurn = { from: "admin" | "venue"; text: string };
+
+function parseQueryThread(raw: string | null): ThreadTurn[] {
+  if (!raw) return [];
+  const turns: ThreadTurn[] = [];
+  const parts = raw.split(/\n\n— Venue response:\s*/);
+  const adminQuery = parts[0].trim();
+  if (adminQuery) turns.push({ from: "admin", text: adminQuery });
+  for (let i = 1; i < parts.length; i++) {
+    const text = parts[i].trim();
+    if (text) turns.push({ from: "venue", text });
+  }
+  return turns;
+}
+
+// ─── Query thread UI ──────────────────────────────────────────────────────────
+
+function QueryThread({ turns }: { turns: ThreadTurn[] }) {
+  if (turns.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {turns.map((turn, i) => (
+        <div
+          className={`flex gap-2.5 ${turn.from === "venue" ? "flex-row-reverse" : ""}`}
+          key={i}
+        >
+          {/* Avatar */}
+          <span
+            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white ${
+              turn.from === "admin" ? "bg-foreground" : "bg-amber-500"
+            }`}
+          >
+            {turn.from === "admin" ? "AD" : "VN"}
+          </span>
+
+          {/* Bubble */}
+          <div
+            className={`max-w-[80%] rounded-xl px-3 py-2.5 text-xs leading-5 ${
+              turn.from === "admin"
+                ? "rounded-tl-none bg-slate-100 text-foreground"
+                : "rounded-tr-none bg-amber-50 text-amber-900"
+            }`}
+          >
+            <p className={`mb-1 text-[10px] font-semibold uppercase tracking-wider ${
+              turn.from === "admin" ? "text-muted" : "text-amber-600"
+            }`}>
+              {turn.from === "admin" ? "Platform team" : "Venue"}
+            </p>
+            {turn.text}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Action buttons ───────────────────────────────────────────────────────────
+
 function ActionButton({
   children,
   className,
@@ -81,136 +141,211 @@ function ActionButton({
   );
 }
 
-function RowActions({ venue }: { venue: AdminVenueReview }) {
-  const [expanded, setExpanded] = useState(false);
-  const [reason, setReason] = useState("");
+// ─── Expanded venue detail panel ──────────────────────────────────────────────
+
+function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose: () => void }) {
+  const [newQuery, setNewQuery] = useState("");
+  const [suspendReason, setSuspendReason] = useState("");
+  const [view, setView] = useState<"actions" | "query" | "suspend">("actions");
   const [isPending, startAction] = useTransition();
+  const thread = parseQueryThread(venue.queryMessage);
 
   function runAction(action: (fd: FormData) => Promise<void>, extraFields?: Record<string, string>) {
     startAction(async () => {
       const fd = new FormData();
       fd.set("venueId", venue.id);
-      if (extraFields) {
-        Object.entries(extraFields).forEach(([k, v]) => fd.set(k, v));
-      }
+      if (extraFields) Object.entries(extraFields).forEach(([k, v]) => fd.set(k, v));
       await action(fd);
     });
   }
 
-  if (venue.status === "pending") {
-    return (
-      <div className="flex items-center justify-end gap-2">
-        <ActionButton
-          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
-          onClick={() => runAction(approveVenue)}
-          pending={isPending}
-        >
-          Approve
-        </ActionButton>
+  return (
+    <tr>
+      <td className="bg-slate-50 px-4 py-5" colSpan={5}>
+        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
 
-        {expanded ? (
-          <div className="flex items-center gap-1.5">
-            <input
-              autoFocus
-              className="w-32 rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-foreground outline-none focus:border-foreground/30"
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason (optional)"
-              value={reason}
-            />
-            <ActionButton
-              className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-              onClick={() => runAction(rejectVenue, { reason })}
-              pending={isPending}
-            >
-              Reject
-            </ActionButton>
-            <button
-              className="text-xs text-muted hover:text-foreground"
-              disabled={isPending}
-              onClick={() => setExpanded(false)}
-              type="button"
-            >
-              Cancel
-            </button>
+          {/* Left — query thread */}
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                {thread.length > 0 ? "Query thread" : "No queries yet"}
+              </p>
+              <button
+                className="text-xs text-muted hover:text-foreground"
+                onClick={onClose}
+                type="button"
+              >
+                Close ✕
+              </button>
+            </div>
+
+            {thread.length > 0 ? (
+              <div className="mb-4 space-y-1 rounded-xl border border-line bg-white p-4">
+                <QueryThread turns={thread} />
+              </div>
+            ) : (
+              <div className="mb-4 rounded-xl border border-dashed border-line bg-white px-4 py-6 text-center text-xs text-muted">
+                No messages yet. Send a query to request more information from the venue.
+              </div>
+            )}
+
+            {/* Send new query or follow-up */}
+            {view === "query" ? (
+              <div className="space-y-2">
+                <textarea
+                  autoFocus
+                  className="w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted focus:border-amber-400 focus:ring-2 focus:ring-amber-100 resize-none"
+                  onChange={(e) => setNewQuery(e.target.value)}
+                  placeholder="Describe what information or changes are needed before approval…"
+                  rows={3}
+                  value={newQuery}
+                />
+                <div className="flex gap-2">
+                  <ActionButton
+                    className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
+                    disabled={!newQuery.trim()}
+                    onClick={() => { runAction(queryVenue, { message: newQuery }); setView("actions"); setNewQuery(""); }}
+                    pending={isPending}
+                  >
+                    Send query
+                  </ActionButton>
+                  <button
+                    className="text-xs text-muted hover:text-foreground"
+                    onClick={() => setView("actions")}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
-        ) : (
-          <button
-            className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-muted transition hover:text-foreground disabled:opacity-50"
-            disabled={isPending}
-            onClick={() => setExpanded(true)}
-            type="button"
-          >
-            Reject
-          </button>
-        )}
-      </div>
-    );
-  }
 
-  if (venue.status === "approved") {
-    return (
-      <div className="flex items-center justify-end gap-2">
-        {expanded ? (
-          <div className="flex items-center gap-1.5">
-            <input
-              autoFocus
-              className="w-32 rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-foreground outline-none focus:border-foreground/30"
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason (optional)"
-              value={reason}
-            />
-            <ActionButton
-              className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-              onClick={() => runAction(suspendVenue, { reason })}
-              pending={isPending}
-            >
-              Suspend
-            </ActionButton>
-            <button
-              className="text-xs text-muted hover:text-foreground disabled:opacity-50"
-              disabled={isPending}
-              onClick={() => setExpanded(false)}
-              type="button"
-            >
-              Cancel
-            </button>
+          {/* Right — venue info + actions */}
+          <div className="space-y-4">
+            {/* Venue details */}
+            <div className="rounded-xl border border-line bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">Details</p>
+              <div className="mt-3 space-y-2.5 text-sm">
+                {/* Full address block */}
+                <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1">Address</p>
+                  <p className="text-sm font-medium text-foreground leading-5">
+                    {[venue.address, venue.city, venue.postalCode].filter(Boolean).join(", ") || "—"}
+                  </p>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">Plan</span>
+                  <span className="font-medium text-foreground">{formatPlan(venue.billingPlan)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">Capacity</span>
+                  <span className="font-medium text-foreground">{venue.capacity} slots</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">Submitted</span>
+                  <span className="font-medium text-foreground">{formatDate(venue.submittedAt)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="shrink-0 text-muted">Email</span>
+                  <span className="truncate font-medium text-foreground">{venue.contactEmail}</span>
+                </div>
+                {venue.contactPhone && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted">Phone</span>
+                    <span className="font-medium text-foreground">{venue.contactPhone}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="rounded-xl border border-line bg-white p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Actions</p>
+
+              {venue.status === "pending" && view !== "suspend" && (
+                <div className="space-y-2">
+                  <ActionButton
+                    className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    onClick={() => runAction(approveVenue)}
+                    pending={isPending}
+                  >
+                    Approve venue
+                  </ActionButton>
+                  {view === "actions" && (
+                    <button
+                      className="w-full rounded-lg border border-amber-200 bg-amber-50 py-2.5 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
+                      disabled={isPending}
+                      onClick={() => setView("query")}
+                      type="button"
+                    >
+                      {thread.length > 0 ? "Send follow-up query" : "Send query"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {venue.status === "approved" && view !== "suspend" && (
+                <button
+                  className="w-full rounded-lg border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                  disabled={isPending}
+                  onClick={() => setView("suspend")}
+                  type="button"
+                >
+                  Suspend venue
+                </button>
+              )}
+
+              {view === "suspend" && (
+                <div className="space-y-2">
+                  <input
+                    autoFocus
+                    className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30"
+                    onChange={(e) => setSuspendReason(e.target.value)}
+                    placeholder="Reason (optional)"
+                    value={suspendReason}
+                  />
+                  <ActionButton
+                    className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                    onClick={() => { runAction(suspendVenue, { reason: suspendReason }); setView("actions"); }}
+                    pending={isPending}
+                  >
+                    Confirm suspend
+                  </ActionButton>
+                  <button
+                    className="w-full text-xs text-muted hover:text-foreground"
+                    onClick={() => setView("actions")}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {(venue.status === "suspended" || venue.status === "rejected") && (
+                <ActionButton
+                  className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                  onClick={() => runAction(approveVenue)}
+                  pending={isPending}
+                >
+                  Reinstate venue
+                </ActionButton>
+              )}
+            </div>
           </div>
-        ) : (
-          <button
-            className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-muted transition hover:text-foreground disabled:opacity-50"
-            disabled={isPending}
-            onClick={() => setExpanded(true)}
-            type="button"
-          >
-            Suspend
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (venue.status === "suspended" || venue.status === "rejected") {
-    return (
-      <div className="flex items-center justify-end">
-        <ActionButton
-          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
-          onClick={() => runAction(approveVenue)}
-          pending={isPending}
-        >
-          Reinstate
-        </ActionButton>
-      </div>
-    );
-  }
-
-  return null;
+        </div>
+      </td>
+    </tr>
+  );
 }
+
+// ─── Main table ───────────────────────────────────────────────────────────────
 
 export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const visible = filter === "all" ? venues : venues.filter((v) => v.status === filter);
-
   const countFor = (s: StatusFilter) =>
     s === "all" ? venues.length : venues.filter((v) => v.status === s).length;
 
@@ -229,7 +364,7 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
                   : "text-muted hover:bg-slate-100 hover:text-foreground"
               }`}
               key={tab.value}
-              onClick={() => setFilter(tab.value)}
+              onClick={() => { setFilter(tab.value); setExpandedId(null); }}
               type="button"
             >
               {tab.label}
@@ -264,30 +399,57 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {visible.map((venue) => (
-                <tr className="hover:bg-slate-50" key={venue.id}>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-foreground">{venue.name}</p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {[venue.city, venue.contactEmail].filter(Boolean).join(" · ")}
-                    </p>
-                  </td>
-                  <td className="hidden px-4 py-3 text-muted md:table-cell">
-                    {formatPlan(venue.billingPlan)}
-                  </td>
-                  <td className="hidden px-4 py-3 text-muted lg:table-cell">
-                    {formatDate(venue.submittedAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusPill tone={STATUS_TONE[venue.status]}>
-                      {STATUS_LABEL[venue.status]}
-                    </StatusPill>
-                  </td>
-                  <td className="px-4 py-3">
-                    <RowActions venue={venue} />
-                  </td>
-                </tr>
-              ))}
+              {visible.map((venue) => {
+                const isExpanded = expandedId === venue.id;
+                const hasThread = Boolean(venue.queryMessage);
+                const isQueried = venue.status === "pending" && hasThread;
+
+                return (
+                  <>
+                    <tr
+                      className={`cursor-pointer transition ${isExpanded ? "bg-slate-50" : "hover:bg-slate-50"}`}
+                      key={venue.id}
+                      onClick={() => setExpandedId(isExpanded ? null : venue.id)}
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-foreground">{venue.name}</p>
+                        <p className="mt-0.5 text-xs text-muted">
+                          {[venue.city, venue.contactEmail].filter(Boolean).join(" · ")}
+                        </p>
+                      </td>
+                      <td className="hidden px-4 py-3 text-muted md:table-cell">
+                        {formatPlan(venue.billingPlan)}
+                      </td>
+                      <td className="hidden px-4 py-3 text-muted lg:table-cell">
+                        {formatDate(venue.submittedAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <StatusPill tone={STATUS_TONE[venue.status]}>
+                            {isQueried ? "Queried" : STATUS_LABEL[venue.status]}
+                          </StatusPill>
+                          {isQueried && (
+                            <span className="text-[10px] text-amber-600">Response pending</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-xs text-muted">
+                          {isExpanded ? "▲ Close" : "▼ Open"}
+                        </span>
+                      </td>
+                    </tr>
+
+                    {isExpanded && (
+                      <VenueDetailPanel
+                        key={`${venue.id}-detail`}
+                        onClose={() => setExpandedId(null)}
+                        venue={venue}
+                      />
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         </div>

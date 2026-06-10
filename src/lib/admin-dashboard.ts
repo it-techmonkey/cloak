@@ -1,6 +1,7 @@
 import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 
 export type AdminVenueReview = {
+  address: string | null;
   billingPlan: string | null;
   billingStatus: string;
   capacity: number;
@@ -9,7 +10,11 @@ export type AdminVenueReview = {
   contactPhone: string | null;
   createdAt: string;
   id: string;
+  latitude: number | null;
+  longitude: number | null;
   name: string;
+  postalCode: string | null;
+  queryMessage: string | null;
   submittedAt: string | null;
   status: "pending" | "approved" | "rejected" | "suspended";
 };
@@ -76,7 +81,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     supabase
       .from("venues")
       .select(
-        "id, name, city, contact_email, contact_phone, capacity, approval_status, billing_plan, billing_status, created_at, submitted_at",
+        "id, name, address, city, postal_code, contact_email, contact_phone, capacity, approval_status, billing_plan, billing_status, created_at, submitted_at, rejection_reason, latitude, longitude",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
@@ -94,6 +99,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     ],
     venues:
       venueRows.data?.map((venue) => ({
+        address: venue.address ?? null,
         billingPlan: venue.billing_plan,
         billingStatus: venue.billing_status,
         capacity: venue.capacity,
@@ -102,7 +108,11 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         contactPhone: venue.contact_phone,
         createdAt: venue.created_at,
         id: venue.id,
+        latitude: venue.latitude ?? null,
+        longitude: venue.longitude ?? null,
         name: venue.name,
+        postalCode: venue.postal_code ?? null,
+        queryMessage: venue.rejection_reason ?? null,
         submittedAt: venue.submitted_at,
         status: venue.approval_status,
       })) ?? [],

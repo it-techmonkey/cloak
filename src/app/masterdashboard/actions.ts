@@ -94,6 +94,35 @@ export async function approveVenue(formData: FormData) {
   finish("Venue approved and activated.");
 }
 
+export async function queryVenue(formData: FormData) {
+  const venueId = readField(formData, "venueId");
+  const message = readField(formData, "message");
+  const admin = await assertAdmin();
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("venues")
+    .update({
+      // Stay pending — just attach the query message so the venue can respond
+      rejection_reason: message || "Please provide additional information.",
+    })
+    .eq("id", venueId);
+
+  if (error) {
+    finish("Could not send query. Please try again.");
+  }
+
+  await writeAuditLog({
+    action: "venue.queried",
+    actorId: admin.userId,
+    metadata: { message },
+    venueId,
+  });
+
+  revalidatePath("/masterdashboard");
+  finish("Query sent to venue.");
+}
+
 export async function rejectVenue(formData: FormData) {
   const venueId = readField(formData, "venueId");
   const reason = readField(formData, "reason") || "Rejected by platform admin.";

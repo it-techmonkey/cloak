@@ -228,6 +228,8 @@ export type Database = {
           created_by: string | null;
           id: string;
           name: string;
+          latitude: number | null;
+          longitude: number | null;
           postal_code: string | null;
           rejection_reason: string | null;
           slug: string;
@@ -255,6 +257,8 @@ export type Database = {
           id?: string;
           name: string;
           postal_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           rejection_reason?: string | null;
           slug: string;
           stripe_customer_id?: string | null;
@@ -280,6 +284,8 @@ export type Database = {
           created_by?: string | null;
           id?: string;
           name?: string;
+          latitude?: number | null;
+          longitude?: number | null;
           postal_code?: string | null;
           rejection_reason?: string | null;
           slug?: string;

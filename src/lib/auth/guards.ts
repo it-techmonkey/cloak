@@ -18,7 +18,7 @@ export type AuthorizedContext = {
 type GuardResult = AuthIssue | AuthorizedContext;
 
 function loginPath(nextPath: string) {
-  return `/login?next=${encodeURIComponent(nextPath)}`;
+  return `/?signin=1&next=${encodeURIComponent(nextPath)}`;
 }
 
 async function getAuthContext(nextPath: string): Promise<GuardResult> {

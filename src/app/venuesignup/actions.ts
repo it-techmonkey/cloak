@@ -80,6 +80,8 @@ async function findUserByEmail(email: string) {
 }
 
 export async function createVenueSignup(formData: FormData) {
+  const latRaw = readField(formData, "latitude");
+  const lngRaw = readField(formData, "longitude");
   const draft: VenueSignupDraft = {
     addressLine1: readField(formData, "addressLine1"),
     addressLine2: readField(formData, "addressLine2"),
@@ -88,6 +90,8 @@ export async function createVenueSignup(formData: FormData) {
     contactEmail: readField(formData, "contactEmail").toLowerCase(),
     contactPhone: readField(formData, "contactPhone"),
     country: readField(formData, "country"),
+    latitude: latRaw ? Number(latRaw) : null,
+    longitude: lngRaw ? Number(lngRaw) : null,
     postalCode: readField(formData, "postalCode").toUpperCase(),
     venueName: readField(formData, "venueName"),
   };
@@ -228,6 +232,8 @@ export async function finishVenueSignup(formData: FormData) {
       contact_phone: draft.contactPhone,
       country: draft.country,
       created_by: manager.id,
+      latitude: draft.latitude ?? null,
+      longitude: draft.longitude ?? null,
       name: draft.venueName,
       postal_code: draft.postalCode,
       slug: slugifyVenueName(draft.venueName),
@@ -253,7 +259,15 @@ export async function finishVenueSignup(formData: FormData) {
     fail("/venuesignup", "We could not assign the venue manager. Please try again.");
   }
 
-  await setSubmittedVenueId(venue.id);
   await clearDraftVenueSignup();
-  redirect("/venuependingapproval");
+
+  // Sign the new manager in so they land on the dashboard
+  const { createClient: createBrowserServer } = await import("@/lib/supabase/server");
+  const serverClient = await createBrowserServer();
+  await serverClient.auth.signInWithPassword({
+    email: draft.contactEmail,
+    password,
+  });
+
+  redirect("/venuedashboard");
 }

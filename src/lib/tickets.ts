@@ -19,6 +19,7 @@ export type PublicTicket = {
   status: "pending_activation" | "active" | "collected" | "cancelled" | "expired";
   storageLocation: string | null;
   ticketId: string;
+  venueAddress: string | null;
   venueId: string;
   venueName: string;
 };
@@ -89,7 +90,7 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
 
   const { data: venue } = await supabase
     .from("venues")
-    .select("name, slug")
+    .select("name, slug, address, city")
     .eq("id", data.venue_id)
     .maybeSingle();
 
@@ -108,6 +109,7 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
       status,
       storageLocation: data.storage_location,
       ticketId: data.public_code,
+      venueAddress: [venue?.address, venue?.city].filter(Boolean).join(", ") || null,
       venueId: venue?.slug ?? data.venue_id,
       venueName: venue?.name ?? "Selected venue",
     } satisfies PublicTicket,

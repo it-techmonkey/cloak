@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Hero from "./Hero";
 import WorkflowHighlights from "./WorkflowHighlights";
+import AuthButton from "@/components/auth/AuthButton";
 
 export default function HomePage() {
   return (
@@ -39,12 +40,15 @@ function PublicHeader() {
             For venues
           </Link>
         </nav>
-        <Link
-          className="rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-          href="/customer-signup"
-        >
-          Get your pass
-        </Link>
+        <div className="flex items-center gap-2">
+          <AuthButton />
+          <Link
+            className="rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            href="/customer-signup"
+          >
+            Get your pass
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -65,9 +69,6 @@ function PublicFooter() {
             </Link>
             <Link className="hover:text-foreground" href="/masterdashboard">
               Admin dashboard
-            </Link>
-            <Link className="hover:text-foreground" href="/login">
-              Login
             </Link>
             <Link className="hover:text-foreground" href="/register-interest">
               Contact

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { signOut } from "@/app/login/actions";
+import { signOut } from "@/lib/auth/actions";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 type HeaderMode = "public" | "venue-staff" | "venue-manager" | "admin";
 
@@ -41,15 +42,27 @@ function resolveMode(activePath?: string, venueRole?: "staff" | "manager"): Head
 
 export default function AppHeader({
   activePath,
+  locked,
   venueRole,
 }: {
   activePath?: string;
+  locked?: boolean;
   venueRole?: "staff" | "manager";
 }) {
   const mode = resolveMode(activePath, venueRole);
-  const items = navItems[mode];
+  const allItems = navItems[mode];
+  // When locked (pending approval), only Dashboard is accessible
+  const items = locked
+    ? allItems.filter((i) => i.href === "/venuedashboard")
+    : allItems;
   const isWorkspace = mode !== "public";
   const [open, setOpen] = useState(false);
+  const { user, loading: authLoading, openAuthModal } = useAuth();
+
+  // Initials for avatar
+  const initials = user?.user_metadata?.full_name
+    ? (user.user_metadata.full_name as string).split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()
+    : user?.email?.[0]?.toUpperCase() ?? "?";
 
   const logoHref =
     mode === "admin"
@@ -70,21 +83,35 @@ export default function AppHeader({
         </Link>
 
         {/* Desktop nav */}
-        {items.length > 0 && (
+        {allItems.length > 0 && (
           <nav className="hidden items-center gap-0.5 md:flex">
-            {items.map((item) => (
-              <Link
-                className={`rounded-md px-3 py-2 text-sm font-medium transition ${
-                  activePath === item.href
-                    ? "bg-slate-100 text-foreground"
-                    : "text-muted hover:bg-slate-50 hover:text-foreground"
-                }`}
-                href={item.href}
-                key={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {allItems.map((item) => {
+              const isLocked = locked && item.href !== "/venuedashboard";
+              if (isLocked) {
+                return (
+                  <span
+                    className="cursor-not-allowed rounded-md px-3 py-2 text-sm font-medium text-muted/40 select-none"
+                    key={item.href}
+                    title="Available after approval"
+                  >
+                    {item.label}
+                  </span>
+                );
+              }
+              return (
+                <Link
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                    activePath === item.href
+                      ? "bg-slate-100 text-foreground"
+                      : "text-muted hover:bg-slate-50 hover:text-foreground"
+                  }`}
+                  href={item.href}
+                  key={item.href}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         )}
 
@@ -99,10 +126,30 @@ export default function AppHeader({
                 Sign out
               </button>
             </form>
+          ) : !authLoading ? (
+            user ? (
+              <Link
+                className="flex items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm font-medium text-foreground transition hover:bg-slate-50"
+                href="/account"
+              >
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-foreground text-[10px] font-bold text-white">
+                  {initials}
+                </span>
+                <span className="hidden sm:block">My account</span>
+              </Link>
+            ) : (
+              <button
+                className="rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-slate-50"
+                onClick={() => openAuthModal("signin")}
+                type="button"
+              >
+                Sign in
+              </button>
+            )
           ) : null}
 
-          {/* Hamburger — shown on mobile when there are nav items */}
-          {(items.length > 0 || isWorkspace) && (
+          {/* Hamburger — shown on mobile when there are nav items or customer is logged in */}
+          {(items.length > 0 || isWorkspace || (!isWorkspace && user)) && (
             <button
               aria-label="Toggle menu"
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-muted transition hover:text-foreground md:hidden"
@@ -127,20 +174,34 @@ export default function AppHeader({
       {open && (
         <div className="border-t border-line bg-panel md:hidden">
           <nav className="flex flex-col px-4 py-3 gap-1">
-            {items.map((item) => (
-              <Link
-                className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                  activePath === item.href
-                    ? "bg-slate-100 text-foreground"
-                    : "text-muted hover:bg-slate-50 hover:text-foreground"
-                }`}
-                href={item.href}
-                key={item.href}
-                onClick={() => setOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {allItems.map((item) => {
+              const isLocked = locked && item.href !== "/venuedashboard";
+              if (isLocked) {
+                return (
+                  <span
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted/40 select-none"
+                    key={item.href}
+                  >
+                    {item.label}
+                    <span className="ml-2 text-xs">(pending approval)</span>
+                  </span>
+                );
+              }
+              return (
+                <Link
+                  className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                    activePath === item.href
+                      ? "bg-slate-100 text-foreground"
+                      : "text-muted hover:bg-slate-50 hover:text-foreground"
+                  }`}
+                  href={item.href}
+                  key={item.href}
+                  onClick={() => setOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
             {isWorkspace && (
               <form action={signOut} className="mt-1">
                 <button
@@ -150,6 +211,25 @@ export default function AppHeader({
                   Sign out
                 </button>
               </form>
+            )}
+            {!isWorkspace && user && (
+              <>
+                <Link
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
+                  href="/account"
+                  onClick={() => setOpen(false)}
+                >
+                  My account
+                </Link>
+                <form action={signOut}>
+                  <button
+                    className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
+                    type="submit"
+                  >
+                    Sign out
+                  </button>
+                </form>
+              </>
             )}
           </nav>
         </div>

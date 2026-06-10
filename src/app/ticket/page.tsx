@@ -3,6 +3,7 @@ import TicketPage from "@/components/ticket/TicketPage";
 import TicketQrCard from "@/components/ticket/TicketQrCard";
 import TicketUnavailablePage from "@/components/ticket/TicketUnavailablePage";
 import { getPublicTicketByCode, getPublicTicketByToken } from "@/lib/tickets";
+import { getWalletConfig } from "@/lib/wallet";
 
 type SearchParams = Promise<{
   code?: string | string[];
@@ -22,6 +23,8 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
   const origin = `${protocol}://${host}`;
 
+  const wallet = getWalletConfig();
+
   if (token) {
     const result = await getPublicTicketByToken(token);
 
@@ -31,7 +34,12 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         qrValue: `${origin}/ticket?token=${encodeURIComponent(token)}`,
       };
       return (
-        <TicketPage ticket={ticketView} qrCard={<TicketQrCard ticket={ticketView} />} />
+        <TicketPage
+          ticket={ticketView}
+          qrCard={<TicketQrCard ticket={ticketView} />}
+          walletParam={`token=${encodeURIComponent(token)}`}
+          wallet={wallet}
+        />
       );
     }
 
@@ -47,7 +55,12 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         qrValue: `${origin}/ticket?code=${encodeURIComponent(result.ticket.ticketId)}`,
       };
       return (
-        <TicketPage ticket={ticketView} qrCard={<TicketQrCard ticket={ticketView} />} />
+        <TicketPage
+          ticket={ticketView}
+          qrCard={<TicketQrCard ticket={ticketView} />}
+          walletParam={`code=${encodeURIComponent(result.ticket.ticketId)}`}
+          wallet={wallet}
+        />
       );
     }
 

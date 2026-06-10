@@ -1,6 +1,7 @@
 import { SecondaryLink } from "@/components/shared/ButtonLink";
 import PageShell from "@/components/shared/PageShell";
 import type { AdminDashboardData } from "@/lib/admin-dashboard";
+import VenueMapPanel from "./VenueMapPanel";
 import VenueTable from "./VenueTable";
 
 export default function MasterDashboardPage({
@@ -47,6 +48,7 @@ export default function MasterDashboardPage({
         ))}
       </div>
 
+      <VenueMapPanel venues={data.venues} />
       <VenueTable venues={data.venues} />
     </PageShell>
   );

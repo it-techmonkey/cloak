@@ -7,6 +7,7 @@ export default function PageShell({
   children,
   description,
   eyebrow,
+  locked,
   title,
   venueRole,
 }: {
@@ -15,12 +16,13 @@ export default function PageShell({
   children: ReactNode;
   description?: string;
   eyebrow?: string;
+  locked?: boolean;
   title: string;
   venueRole?: "staff" | "manager";
 }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AppHeader activePath={activePath} venueRole={venueRole} />
+      <AppHeader activePath={activePath} locked={locked} venueRole={venueRole} />
       <main className="mx-auto w-full max-w-7xl px-4 pb-12 pt-5 sm:px-6 lg:px-8">
         {/* Page header — stacks on mobile, side-by-side on sm+ */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">

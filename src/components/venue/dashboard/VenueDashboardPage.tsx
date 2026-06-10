@@ -4,6 +4,7 @@ import PageShell from "@/components/shared/PageShell";
 import Panel from "@/components/shared/Panel";
 import StatusPill from "@/components/shared/StatusPill";
 import type { VenueDashboardData } from "@/lib/venue-dashboard";
+import ApprovalBanner from "./ApprovalBanner";
 import LiveDashboardStats, { type LiveCounts } from "./LiveDashboardStats";
 import TodayTickets from "./TodayTickets";
 
@@ -28,14 +29,23 @@ function buildInitialCounts(data: VenueDashboardData): LiveCounts {
 // ─── Staff view ────────────────────────────────────────────────────────────────
 
 function StaffDashboard({ data }: { data: VenueDashboardData }) {
+  const isLocked = data.approvalStatus !== "approved";
   return (
     <PageShell
       activePath="/venuedashboard"
       eyebrow={data.venueLabel}
+      locked={isLocked}
       title="Dashboard"
       venueRole="staff"
-      actions={<PrimaryLink href="/venuescanner">Open scanner</PrimaryLink>}
+      actions={
+        isLocked ? null : <PrimaryLink href="/venuescanner">Open scanner</PrimaryLink>
+      }
     >
+      <ApprovalBanner
+        approvalStatus={data.approvalStatus}
+        queryMessage={data.queryMessage}
+        venueId={data.venue?.id ?? null}
+      />
       <LiveDashboardStats
         initialCounts={buildInitialCounts(data)}
         showCapacityBar={false}
@@ -49,28 +59,37 @@ function StaffDashboard({ data }: { data: VenueDashboardData }) {
 // ─── Manager view ───────────────────────────────────────────────────────────────
 
 function ManagerDashboard({ data }: { data: VenueDashboardData }) {
+  const isLocked = data.approvalStatus !== "approved";
   return (
     <PageShell
       activePath="/venuedashboard"
       eyebrow={data.venueLabel}
+      locked={isLocked}
       title="Dashboard"
       venueRole="manager"
       actions={
-        <>
-          <PrimaryLink href="/venuescanner">Open scanner</PrimaryLink>
-          <SecondaryLink href="/venueanalytics">Analytics</SecondaryLink>
-          <SecondaryLink href="/venuesettings">Settings</SecondaryLink>
-        </>
+        isLocked ? null : (
+          <>
+            <PrimaryLink href="/venuescanner">Open scanner</PrimaryLink>
+            <SecondaryLink href="/venueanalytics">Analytics</SecondaryLink>
+            <SecondaryLink href="/venuesettings">Settings</SecondaryLink>
+          </>
+        )
       }
     >
+      <ApprovalBanner
+        approvalStatus={data.approvalStatus}
+        queryMessage={data.queryMessage}
+        venueId={data.venue?.id ?? null}
+      />
       <LiveDashboardStats
         initialCounts={buildInitialCounts(data)}
-        showCapacityBar={true}
+        showCapacityBar={!isLocked}
         venueId={data.venue?.id ?? null}
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
         <TodayTickets data={data} />
-        <StaffRoster staff={data.staff} />
+        {!isLocked && <StaffRoster staff={data.staff} />}
       </div>
     </PageShell>
   );
