@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { signOut } from "@/lib/auth/actions";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 type HeaderMode = "public" | "venue-staff" | "venue-manager" | "admin";
@@ -57,7 +56,7 @@ export default function AppHeader({
     : allItems;
   const isWorkspace = mode !== "public";
   const [open, setOpen] = useState(false);
-  const { user, loading: authLoading, openAuthModal } = useAuth();
+  const { user, loading: authLoading, openAuthModal, signOut } = useAuth();
 
   // Initials for avatar
   const initials = user?.user_metadata?.full_name
@@ -118,14 +117,13 @@ export default function AppHeader({
         {/* Right side */}
         <div className="flex items-center gap-2">
           {isWorkspace ? (
-            <form action={signOut} className="hidden md:block">
-              <button
-                className="rounded-md border border-line bg-white px-3 py-1.5 text-sm font-medium text-muted transition hover:border-foreground/20 hover:text-foreground"
-                type="submit"
-              >
-                Sign out
-              </button>
-            </form>
+            <button
+              className="hidden rounded-md border border-line bg-white px-3 py-1.5 text-sm font-medium text-muted transition hover:border-foreground/20 hover:text-foreground md:block"
+              onClick={signOut}
+              type="button"
+            >
+              Sign out
+            </button>
           ) : !authLoading ? (
             user ? (
               <Link
@@ -203,14 +201,13 @@ export default function AppHeader({
               );
             })}
             {isWorkspace && (
-              <form action={signOut} className="mt-1">
-                <button
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
-                  type="submit"
-                >
-                  Sign out
-                </button>
-              </form>
+              <button
+                className="mt-1 w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
+                onClick={signOut}
+                type="button"
+              >
+                Sign out
+              </button>
             )}
             {!isWorkspace && user && (
               <>
@@ -221,14 +218,13 @@ export default function AppHeader({
                 >
                   My account
                 </Link>
-                <form action={signOut}>
-                  <button
-                    className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
-                    type="submit"
-                  >
-                    Sign out
-                  </button>
-                </form>
+                <button
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
+                  onClick={signOut}
+                  type="button"
+                >
+                  Sign out
+                </button>
               </>
             )}
           </nav>
