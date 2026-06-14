@@ -120,7 +120,7 @@ export async function createGuestTicket(formData: FormData) {
 
   const venueAddress = [venueRow?.address, venueRow?.city].filter(Boolean).join(", ") || null;
 
-  void sendEmail({
+  await sendEmail({
     to: email,
     subject: `Your Cloak pass for ${venueRow?.name ?? "your venue"}`,
     react: GuestTicketEmail({

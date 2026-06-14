@@ -266,7 +266,7 @@ export async function finishVenueSignup(formData: FormData) {
 
   const adminEmail = process.env.PLATFORM_ADMIN_EMAIL;
   if (adminEmail) {
-    void sendEmail({
+    await sendEmail({
       to: adminEmail,
       subject: `New venue pending review: ${draft.venueName}`,
       react: NewVenuePendingEmail({

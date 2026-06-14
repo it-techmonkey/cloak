@@ -94,7 +94,7 @@ export async function approveVenue(formData: FormData) {
   });
 
   if (venue.contact_email) {
-    void sendEmail({
+    await sendEmail({
       to: venue.contact_email,
       subject: `${venue.name} is approved on Cloak`,
       react: VenueApprovedEmail({
@@ -141,7 +141,7 @@ export async function queryVenue(formData: FormData) {
   });
 
   if (venue?.contact_email) {
-    void sendEmail({
+    await sendEmail({
       to: venue.contact_email,
       subject: `A question about your ${venue.name} application`,
       react: VenueRejectedEmail({
@@ -190,7 +190,7 @@ export async function rejectVenue(formData: FormData) {
   });
 
   if (venue?.contact_email) {
-    void sendEmail({
+    await sendEmail({
       to: venue.contact_email,
       subject: `Update on your ${venue.name} application`,
       react: VenueRejectedEmail({

@@ -28,26 +28,27 @@ export async function submitLeadForm(formData: FormData) {
   }
 
   const adminEmail = process.env.PLATFORM_ADMIN_EMAIL;
-  if (adminEmail) {
-    void sendEmail({
-      to: adminEmail,
-      subject: `New enquiry: ${venueName}`,
-      react: LeadNotificationEmail({
-        capacity,
-        contactEmail: email,
-        contactName,
-        dashboardUrl: `${getSiteUrl()}/masterdashboard`,
-        message,
-        venueName,
-      }),
-    });
-  }
-
-  void sendEmail({
-    to: email,
-    subject: "We've received your Cloak enquiry",
-    react: LeadAutoReplyEmail({ contactName, venueName }),
-  });
+  await Promise.all([
+    adminEmail
+      ? sendEmail({
+          to: adminEmail,
+          subject: `New enquiry: ${venueName}`,
+          react: LeadNotificationEmail({
+            capacity,
+            contactEmail: email,
+            contactName,
+            dashboardUrl: `${getSiteUrl()}/masterdashboard`,
+            message,
+            venueName,
+          }),
+        })
+      : Promise.resolve(),
+    sendEmail({
+      to: email,
+      subject: "We've received your Cloak enquiry",
+      react: LeadAutoReplyEmail({ contactName, venueName }),
+    }),
+  ]);
 
   redirect("/register-interest?success=1");
 }
