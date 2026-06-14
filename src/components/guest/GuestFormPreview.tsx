@@ -1,92 +1,170 @@
+﻿"use client";
+
+import { useState } from "react";
 import { createGuestTicket } from "@/app/customer-signup/actions";
-import Panel from "@/components/shared/Panel";
 import SubmitButton from "@/components/shared/SubmitButton";
+import PhoneInput from "@/components/shared/PhoneInput";
 import type { PublicVenueOption } from "@/lib/tickets";
+import type { PublicEventOption } from "@/lib/events";
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15";
+  "w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8";
+
+const selectClass =
+  "w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-foreground outline-none transition focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8 appearance-none cursor-pointer";
 
 export default function GuestFormPreview({
   error,
+  eventsByVenue,
   venues,
 }: {
   error?: string;
+  eventsByVenue: Record<string, PublicEventOption[]>;
   venues: PublicVenueOption[];
 }) {
   const hasVenues = venues.length > 0;
+  const [selectedId, setSelectedId] = useState<string>(venues[0]?.id ?? "");
+  const selectedVenue = venues.find((v) => v.id === selectedId);
+  const venueEvents = eventsByVenue[selectedId] ?? [];
 
   return (
-    <Panel
-      title="Check in"
-      description="Enter your details to get your digital ticket."
-    >
+    <div className="rounded-2xl border border-line bg-white p-6 shadow-sm">
       <form action={createGuestTicket} className="grid gap-5">
-        <label className="grid gap-2 text-sm font-medium text-foreground">
-          Venue
-          <select className={inputClass} disabled={!hasVenues} name="venue" required>
-            {hasVenues ? (
-              venues.map((venue) => (
-                <option key={venue.id} value={venue.id}>
-                  {venue.label}
-                </option>
-              ))
-            ) : (
-              <option value="">No approved venues available</option>
-            )}
-          </select>
-        </label>
+
+        {/* Venue select */}
+        <div className="grid gap-2">
+          <label className="text-sm font-semibold text-foreground" htmlFor="venue-select">
+            Venue
+          </label>
+          <div className="relative">
+            <select
+              className={selectClass}
+              disabled={!hasVenues}
+              id="venue-select"
+              name="venue"
+              onChange={(e) => setSelectedId(e.target.value)}
+              required
+              value={selectedId}
+            >
+              {hasVenues ? (
+                venues.map((venue) => (
+                  <option key={venue.id} value={venue.id}>
+                    {venue.label}
+                  </option>
+                ))
+              ) : (
+                <option value="">No approved venues available</option>
+              )}
+            </select>
+            <svg
+              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          {selectedVenue?.address && (
+            <p className="flex items-center gap-1.5 text-xs text-muted">
+              <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {selectedVenue.address}
+            </p>
+          )}
+        </div>
+
+        {/* Event select — only when the chosen venue is running events */}
+        {venueEvents.length > 0 && (
+          <div className="grid gap-2">
+            <label className="text-sm font-semibold text-foreground" htmlFor="event-select">
+              Event <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <div className="relative">
+              <select className={selectClass} defaultValue="" id="event-select" name="event">
+                <option value="">No specific event</option>
+                {venueEvents.map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.name}
+                  </option>
+                ))}
+              </select>
+              <svg
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+        )}
 
         {!hasVenues ? (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
-            Guest check-in will be available once an approved venue is active.
-          </p>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm font-medium text-amber-700">
+              Guest check-in will be available once an approved venue is active.
+            </p>
+          </div>
         ) : null}
 
-        <label className="grid gap-2 text-sm font-medium text-foreground">
-          Full name
+        {/* Name */}
+        <div className="grid gap-2">
+          <label className="text-sm font-semibold text-foreground" htmlFor="full-name">
+            Full name
+          </label>
           <input
             className={inputClass}
+            id="full-name"
             name="fullName"
             placeholder="Enter your full name"
             required
             type="text"
           />
-        </label>
+        </div>
 
-        <label className="grid gap-2 text-sm font-medium text-foreground">
-          Email
+        {/* Email */}
+        <div className="grid gap-2">
+          <label className="text-sm font-semibold text-foreground" htmlFor="email">
+            Email
+          </label>
           <input
             className={inputClass}
+            id="email"
             name="email"
             placeholder="you@example.com"
             required
             type="email"
           />
-        </label>
+        </div>
 
-        <label className="grid gap-2 text-sm font-medium text-foreground">
-          Mobile
-          <input
-            className={inputClass}
-            name="mobile"
-            placeholder="+44 7700 000000"
-            required
-            type="tel"
-          />
-        </label>
+        {/* Mobile */}
+        <div className="grid gap-2">
+          <label className="text-sm font-semibold text-foreground" htmlFor="mobile">
+            Mobile
+          </label>
+          <PhoneInput id="mobile" name="mobile" placeholder="7700 900000" required />
+        </div>
 
         {error ? (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-            {error}
-          </p>
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-700">{error}</p>
+          </div>
         ) : null}
 
-        <SubmitButton disabled={!hasVenues}>Get digital ticket</SubmitButton>
+        <SubmitButton disabled={!hasVenues}>
+          Get my pass — it&apos;s free
+        </SubmitButton>
 
         <p className="text-center text-xs leading-5 text-muted">
-          Your details are used to create a cloakroom pass for this visit only.
+          Your details are used only to create a cloakroom pass for this visit.
         </p>
       </form>
-    </Panel>
+    </div>
   );
 }

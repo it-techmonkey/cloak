@@ -2,6 +2,14 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type TicketStatus = Database["public"]["Tables"]["tickets"]["Row"]["status"];
 
+export type TicketItemView = {
+  id: string;
+  label: string;
+  quantity: number;
+  notes: string | null;
+  collected: boolean;
+};
+
 export type ScannerTicket = {
   expiresAt: string;
   guestEmail: string;
@@ -11,6 +19,7 @@ export type ScannerTicket = {
   itemCount: number;
   itemDescription: string | null;
   itemType: string | null;
+  items: TicketItemView[];
   publicCode: string;
   status: TicketStatus;
   storageLocation: string | null;

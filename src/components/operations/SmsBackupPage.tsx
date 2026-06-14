@@ -1,22 +1,20 @@
-import FieldPreview from "@/components/shared/FieldPreview";
 import PageShell from "@/components/shared/PageShell";
-import Panel from "@/components/shared/Panel";
+import BackupConsole from "./BackupConsole";
 
-export default function SmsBackupPage() {
+export default function SmsBackupPage({
+  venueRole = "manager",
+}: {
+  venueRole?: "staff" | "manager";
+}) {
   return (
     <PageShell
       activePath="/smsbackup"
       eyebrow="Operations"
-      title="SMS backup"
-      description="Fallback lookup surface for manual ticket recovery. SMS sending remains a cost-controlled feature."
+      title="Phone backup lookup"
+      description="When a guest's phone has died or they've lost their code, find their open ticket by phone number and complete check-in or collection here."
+      venueRole={venueRole}
     >
-      <Panel title="Backup lookup">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FieldPreview label="Mobile" value="+44 7700 123456" />
-          <FieldPreview label="Ticket code" value="CLK-0001" />
-          <FieldPreview label="Result" value="Pending activation" />
-        </div>
-      </Panel>
+      <BackupConsole />
     </PageShell>
   );
 }

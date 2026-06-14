@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -143,7 +143,7 @@ export default function LocationPicker({
         {/* Map */}
         <div className="relative h-56 overflow-hidden rounded-t-xl">
           {!mapReady && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50 text-sm text-muted">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-50 text-sm text-muted">
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-transparent" />
                 Loading map…
@@ -159,7 +159,7 @@ export default function LocationPicker({
           {/* Locate me button */}
           {mapReady && (
             <button
-              className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition hover:bg-zinc-50 disabled:opacity-50"
               disabled={locating}
               onClick={handleLocateMe}
               type="button"
@@ -178,7 +178,7 @@ export default function LocationPicker({
         </div>
 
         {/* Coordinates readout */}
-        <div className="flex items-center justify-between border-t border-line bg-slate-50 px-4 py-2.5">
+        <div className="flex items-center justify-between border-t border-line bg-zinc-50 px-4 py-2.5">
           {coords ? (
             <p className="font-mono text-xs text-muted">
               {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
@@ -204,3 +204,4 @@ export default function LocationPicker({
     </div>
   );
 }
+

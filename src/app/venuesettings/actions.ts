@@ -216,6 +216,40 @@ export async function updateMyProfile(formData: FormData) {
   finish("Profile updated.");
 }
 
+// ─── Update venue expiry ───────────────────────────────────────────────────────
+
+export async function updateVenueExpiry(formData: FormData) {
+  const guard = await requireVenueAccess("/venuesettings", ["manager"]);
+
+  if (guard.status !== "authorized" || !isSupabaseAdminConfigured()) {
+    fail("Expiry settings are temporarily unavailable.");
+  }
+
+  const venueId = guard.venueRoles.find((r) => r.role === "manager")?.venueId;
+  if (!venueId) fail("No managed venue was found for this account.");
+
+  const enabled = readField(formData, "expiryEnabled") === "1";
+  let ticketExpiryHours: number | null = null;
+
+  if (enabled) {
+    const raw = parseInt(readField(formData, "expiryHours"), 10);
+    if (isNaN(raw) || raw < 1) fail("Expiry duration must be at least 1 hour.");
+    if (raw > 720) fail("Expiry duration cannot exceed 720 hours (30 days).");
+    ticketExpiryHours = raw;
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("venues")
+    .update({ ticket_expiry_hours: ticketExpiryHours })
+    .eq("id", venueId);
+
+  if (error) fail("Could not update expiry settings. Please try again.");
+
+  revalidatePath("/venuesettings");
+  finish(enabled ? `Tickets now expire after ${ticketExpiryHours} hours.` : "Ticket expiry disabled.");
+}
+
 // ─── Change password ───────────────────────────────────────────────────────────
 
 export async function changeMyPassword(formData: FormData) {

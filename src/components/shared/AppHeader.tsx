@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -14,12 +14,15 @@ const navItems: Record<HeaderMode, Array<{ href: string; label: string }>> = {
   "venue-manager": [
     { href: "/venuedashboard", label: "Dashboard" },
     { href: "/venuescanner", label: "Scanner" },
+    { href: "/smsbackup", label: "SMS backup" },
+    { href: "/venueevents", label: "Events" },
     { href: "/venueanalytics", label: "Analytics" },
     { href: "/venuesettings", label: "Settings" },
   ],
   "venue-staff": [
     { href: "/venuedashboard", label: "Dashboard" },
     { href: "/venuescanner", label: "Scanner" },
+    { href: "/smsbackup", label: "SMS backup" },
   ],
   public: [],
 };
@@ -29,6 +32,7 @@ function resolveMode(activePath?: string, venueRole?: "staff" | "manager"): Head
   if (
     activePath === "/venuedashboard" ||
     activePath === "/venuescanner" ||
+    activePath === "/venueevents" ||
     activePath === "/venueanalytics" ||
     activePath === "/venuesettings" ||
     activePath === "/smsbackup" ||
@@ -50,7 +54,6 @@ export default function AppHeader({
 }) {
   const mode = resolveMode(activePath, venueRole);
   const allItems = navItems[mode];
-  // When locked (pending approval), only Dashboard is accessible
   const items = locked
     ? allItems.filter((i) => i.href === "/venuedashboard")
     : allItems;
@@ -58,7 +61,6 @@ export default function AppHeader({
   const [open, setOpen] = useState(false);
   const { user, loading: authLoading, openAuthModal, signOut } = useAuth();
 
-  // Initials for avatar
   const initials = user?.user_metadata?.full_name
     ? (user.user_metadata.full_name as string).split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()
     : user?.email?.[0]?.toUpperCase() ?? "?";
@@ -101,8 +103,8 @@ export default function AppHeader({
                 <Link
                   className={`rounded-md px-3 py-2 text-sm font-medium transition ${
                     activePath === item.href
-                      ? "bg-slate-100 text-foreground"
-                      : "text-muted hover:bg-slate-50 hover:text-foreground"
+                      ? "bg-zinc-100 text-foreground"
+                      : "text-muted hover:bg-zinc-50 hover:text-foreground"
                   }`}
                   href={item.href}
                   key={item.href}
@@ -127,7 +129,7 @@ export default function AppHeader({
           ) : !authLoading ? (
             user ? (
               <Link
-                className="flex items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm font-medium text-foreground transition hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm font-medium text-foreground transition hover:bg-zinc-50"
                 href="/account"
               >
                 <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-foreground text-[10px] font-bold text-white">
@@ -137,7 +139,7 @@ export default function AppHeader({
               </Link>
             ) : (
               <button
-                className="rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-slate-50"
+                className="rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-zinc-50"
                 onClick={() => openAuthModal("signin")}
                 type="button"
               >
@@ -146,7 +148,6 @@ export default function AppHeader({
             )
           ) : null}
 
-          {/* Hamburger — shown on mobile when there are nav items or customer is logged in */}
           {(items.length > 0 || isWorkspace || (!isWorkspace && user)) && (
             <button
               aria-label="Toggle menu"
@@ -189,8 +190,8 @@ export default function AppHeader({
                 <Link
                   className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                     activePath === item.href
-                      ? "bg-slate-100 text-foreground"
-                      : "text-muted hover:bg-slate-50 hover:text-foreground"
+                      ? "bg-zinc-100 text-foreground"
+                      : "text-muted hover:bg-zinc-50 hover:text-foreground"
                   }`}
                   href={item.href}
                   key={item.href}
@@ -202,7 +203,7 @@ export default function AppHeader({
             })}
             {isWorkspace && (
               <button
-                className="mt-1 w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
+                className="mt-1 w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-zinc-50 hover:text-foreground"
                 onClick={signOut}
                 type="button"
               >
@@ -212,14 +213,14 @@ export default function AppHeader({
             {!isWorkspace && user && (
               <>
                 <Link
-                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition hover:bg-zinc-50 hover:text-foreground"
                   href="/account"
                   onClick={() => setOpen(false)}
                 >
                   My account
                 </Link>
                 <button
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-slate-50 hover:text-foreground"
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-zinc-50 hover:text-foreground"
                   onClick={signOut}
                   type="button"
                 >

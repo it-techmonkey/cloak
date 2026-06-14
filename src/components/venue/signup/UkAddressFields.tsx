@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 const LocationPicker = dynamic(() => import("./LocationPicker"), { ssr: false });
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15";
+  "w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8";
 
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY ?? "";
 
@@ -108,7 +108,7 @@ export default function UkAddressFields() {
           <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-line bg-white shadow-lg">
             {suggestions.map((s) => (
               <button
-                className="block w-full px-4 py-3 text-left text-sm hover:bg-slate-50"
+                className="block w-full px-4 py-3 text-left text-sm hover:bg-zinc-50"
                 key={s.id}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => apply(s)}
@@ -191,3 +191,4 @@ export default function UkAddressFields() {
     </div>
   );
 }
+

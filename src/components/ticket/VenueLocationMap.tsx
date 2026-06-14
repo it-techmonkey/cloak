@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -101,7 +101,7 @@ export default function VenueLocationMap({
       {/* Container is always in DOM so MapLibre can measure it */}
       <div className="relative h-44 overflow-hidden rounded-t-xl">
         {state === "loading" && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-slate-50 text-xs text-muted">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-zinc-50 text-xs text-muted">
             <span className="flex items-center gap-2">
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted border-t-transparent" />
               Loading map…
@@ -118,3 +118,4 @@ export default function VenueLocationMap({
     </div>
   );
 }
+

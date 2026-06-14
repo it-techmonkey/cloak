@@ -1,10 +1,11 @@
-import { createVenueSignup } from "@/app/venuesignup/actions";
+﻿import { createVenueSignup } from "@/app/venuesignup/actions";
 import Panel from "@/components/shared/Panel";
 import SubmitButton from "@/components/shared/SubmitButton";
+import PhoneInput from "@/components/shared/PhoneInput";
 import UkAddressFields from "./UkAddressFields";
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15";
+  "w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8";
 
 export default function VenueDetailsPreview({ error }: { error?: string }) {
   return (
@@ -29,7 +30,7 @@ export default function VenueDetailsPreview({ error }: { error?: string }) {
           </label>
           <label className="grid gap-2 text-sm font-medium text-foreground">
             Contact phone
-            <input className={inputClass} name="contactPhone" placeholder="+44 20 0000 0000" required type="tel" />
+            <PhoneInput name="contactPhone" placeholder="20 0000 0000" required />
           </label>
         </div>
 
@@ -44,3 +45,4 @@ export default function VenueDetailsPreview({ error }: { error?: string }) {
     </Panel>
   );
 }
+

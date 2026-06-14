@@ -12,12 +12,21 @@ export default function VenueScannerPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted">Scanner</p>
             <h1 className="mt-1 text-xl font-semibold text-foreground">Verify ticket</h1>
           </div>
-          <Link
-            className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-muted transition hover:border-foreground/20 hover:text-foreground"
-            href="/venuedashboard"
-          >
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-muted transition hover:border-foreground/20 hover:text-foreground"
+              href="/smsbackup"
+              title="Find a ticket when the guest has no phone or code"
+            >
+              Phone lookup
+            </Link>
+            <Link
+              className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-muted transition hover:border-foreground/20 hover:text-foreground"
+              href="/venuedashboard"
+            >
+              ← Dashboard
+            </Link>
+          </div>
         </div>
         <ScannerFrame />
       </main>

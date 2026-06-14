@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import {
@@ -90,7 +90,7 @@ function QueryThread({ turns }: { turns: ThreadTurn[] }) {
           <div
             className={`max-w-[80%] rounded-xl px-3 py-2.5 text-xs leading-5 ${
               turn.from === "admin"
-                ? "rounded-tl-none bg-slate-100 text-foreground"
+                ? "rounded-tl-none bg-zinc-100 text-foreground"
                 : "rounded-tr-none bg-amber-50 text-amber-900"
             }`}
           >
@@ -161,7 +161,7 @@ function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose
 
   return (
     <tr>
-      <td className="bg-slate-50 px-4 py-5" colSpan={5}>
+      <td className="bg-zinc-50 px-4 py-5" colSpan={5}>
         <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
 
           {/* Left — query thread */}
@@ -228,7 +228,7 @@ function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose
               <p className="text-xs font-semibold uppercase tracking-wider text-muted">Details</p>
               <div className="mt-3 space-y-2.5 text-sm">
                 {/* Full address block */}
-                <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+                <div className="rounded-lg bg-zinc-50 px-3 py-2.5">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1">Address</p>
                   <p className="text-sm font-medium text-foreground leading-5">
                     {[venue.address, venue.city, venue.postalCode].filter(Boolean).join(", ") || "—"}
@@ -361,7 +361,7 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 active
                   ? "bg-foreground text-white"
-                  : "text-muted hover:bg-slate-100 hover:text-foreground"
+                  : "text-muted hover:bg-zinc-100 hover:text-foreground"
               }`}
               key={tab.value}
               onClick={() => { setFilter(tab.value); setExpandedId(null); }}
@@ -371,7 +371,7 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
               {count > 0 && (
                 <span
                   className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                    active ? "bg-white/20 text-white" : "bg-slate-100 text-muted"
+                    active ? "bg-white/20 text-white" : "bg-zinc-100 text-muted"
                   }`}
                 >
                   {count}
@@ -383,14 +383,14 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-line bg-slate-50 px-4 py-8 text-center text-sm text-muted">
+        <div className="rounded-lg border border-dashed border-line bg-zinc-50 px-4 py-8 text-center text-sm text-muted">
           No venues in this category.
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-line">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-line bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+              <tr className="border-b border-line bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                 <th className="px-4 py-3">Venue</th>
                 <th className="hidden px-4 py-3 md:table-cell">Plan</th>
                 <th className="hidden px-4 py-3 lg:table-cell">Submitted</th>
@@ -407,7 +407,7 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
                 return (
                   <>
                     <tr
-                      className={`cursor-pointer transition ${isExpanded ? "bg-slate-50" : "hover:bg-slate-50"}`}
+                      className={`cursor-pointer transition ${isExpanded ? "bg-zinc-50" : "hover:bg-zinc-50"}`}
                       key={venue.id}
                       onClick={() => setExpandedId(isExpanded ? null : venue.id)}
                     >
@@ -457,3 +457,4 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
     </Panel>
   );
 }
+

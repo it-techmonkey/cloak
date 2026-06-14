@@ -1,10 +1,10 @@
-import type { StatusTone } from "./StatusPill";
+﻿import type { StatusTone } from "./StatusPill";
 
 const toneClass: Record<StatusTone, string> = {
-  blue: "bg-blue-500",
+  blue: "bg-foreground",
   danger: "bg-red-500",
   green: "bg-emerald-500",
-  neutral: "bg-slate-400",
+  neutral: "bg-zinc-400",
   warning: "bg-amber-500",
 };
 
@@ -30,3 +30,4 @@ export default function MetricCard({
     </div>
   );
 }
+

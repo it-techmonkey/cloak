@@ -1,4 +1,4 @@
-import FieldPreview from "@/components/shared/FieldPreview";
+﻿import FieldPreview from "@/components/shared/FieldPreview";
 import PageShell from "@/components/shared/PageShell";
 import Panel from "@/components/shared/Panel";
 import StatusPill, { type StatusTone } from "@/components/shared/StatusPill";
@@ -10,11 +10,15 @@ function formatStatus(status: VenueTicketDetail["status"]) {
     return "Pending activation";
   }
 
+  if (status === "partially_collected") {
+    return "Partially collected";
+  }
+
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 function statusTone(status: VenueTicketDetail["status"]): StatusTone {
-  if (status === "active") {
+  if (status === "active" || status === "partially_collected") {
     return "green";
   }
 
@@ -23,7 +27,7 @@ function statusTone(status: VenueTicketDetail["status"]): StatusTone {
   }
 
   if (status === "collected") {
-    return "blue";
+    return "neutral";
   }
 
   return "danger";
@@ -38,6 +42,13 @@ function formatDate(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function storageLocationLabel(ticket: VenueTicketDetail) {
+  if (ticket.storageLocation) return ticket.storageLocation;
+  // No slot recorded. "Pending" only makes sense before activation; a closed
+  // ticket simply has no current slot.
+  return ticket.status === "pending_activation" ? "Pending" : "—";
 }
 
 export default function VenueTicketDetailPage({ ticket }: { ticket: VenueTicketDetail | null }) {
@@ -79,8 +90,9 @@ export default function VenueTicketDetailPage({ ticket }: { ticket: VenueTicketD
           <div className="grid gap-4 sm:grid-cols-2">
             <FieldPreview label="Name" value={ticket.guestName} />
             <FieldPreview label="Mobile" value={ticket.guestPhone} />
-            <FieldPreview label="Email" value={ticket.guestEmail} />
+            <FieldPreview label="Email" value={ticket.guestEmail || "Not provided"} />
             <FieldPreview label="Venue" value={ticket.venueName} />
+            <FieldPreview label="Event" value={ticket.eventName ?? "No event"} />
           </div>
         </Panel>
 
@@ -98,15 +110,42 @@ export default function VenueTicketDetailPage({ ticket }: { ticket: VenueTicketD
 
         <Panel title="Item details">
           <div className="grid gap-4 sm:grid-cols-2">
-            <FieldPreview label="Item type" value={ticket.itemType ?? "Pending"} />
-            <FieldPreview label="Item count" value={String(ticket.itemCount)} />
-            <FieldPreview label="Storage location" value={ticket.storageLocation ?? "Pending"} />
-            <FieldPreview
-              label="Notes"
-              value={ticket.itemDescription ?? "No notes recorded"}
-              wide
-            />
+            <FieldPreview label="Storage location" value={storageLocationLabel(ticket)} />
+            <FieldPreview label="Items stored" value={`${ticket.items.filter((i) => !i.collectedAt).length} of ${ticket.items.length}`} />
           </div>
+
+          {ticket.items.length > 0 ? (
+            <div className="mt-4 divide-y divide-line rounded-lg border border-line">
+              {ticket.items.map((item) => {
+                const collected = item.collectedAt !== null;
+                return (
+                  <div className="flex items-center justify-between gap-3 px-4 py-3" key={item.id}>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium ${collected ? "text-muted line-through" : "text-foreground"}`}>
+                        {item.quantity > 1 ? `${item.quantity}× ` : ""}{item.label}
+                      </p>
+                      {item.notes ? <p className="mt-0.5 text-xs text-muted">{item.notes}</p> : null}
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        collected ? "bg-zinc-100 text-zinc-500" : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      {collected ? "Returned" : "Stored"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-muted">No items recorded yet — added at activation.</p>
+          )}
+
+          {ticket.itemDescription ? (
+            <p className="mt-4 border-t border-line pt-4 text-xs leading-5 text-muted">
+              {ticket.itemDescription}
+            </p>
+          ) : null}
         </Panel>
 
         <Panel title="Timeline">
@@ -154,7 +193,7 @@ function TimelineItem({
       : tone === "danger"
         ? "bg-red-500"
         : tone === "blue"
-          ? "bg-blue-500"
+          ? "bg-foreground"
           : "border border-line bg-white";
 
   return (
@@ -167,3 +206,4 @@ function TimelineItem({
     </div>
   );
 }
+

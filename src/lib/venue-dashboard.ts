@@ -38,6 +38,7 @@ export type VenueInfo = {
   name: string;
   postalCode: string | null;
   slug: string;
+  ticketExpiryHours: number | null;
 };
 
 export type UserProfile = {
@@ -64,18 +65,29 @@ export type VenueDashboardData = {
 };
 
 export type VenueAnalyticsData = {
+  byEvent: Array<{ id: string; name: string; eventDate: string; tickets: number; collected: number }>;
   hourlyVolume: Array<{ hour: string; count: number; percent: number }>;
   itemTypes: Array<{ count: number; label: string; percent: number }>;
   stats: Array<{ label: string; value: string; tone: StatusTone }>;
   venueLabel: string;
 };
 
+export type VenueTicketItem = {
+  id: string;
+  label: string;
+  quantity: number;
+  notes: string | null;
+  collectedAt: string | null;
+};
+
 export type VenueTicketDetail = VenueTicketListItem & {
   activatedAt: string | null;
   collectedAt: string | null;
+  eventName: string | null;
   expiresAt: string;
   guestEmail: string;
   itemDescription: string | null;
+  items: VenueTicketItem[];
   scans: Array<{
     createdAt: string;
     id: string;
@@ -88,7 +100,7 @@ export type VenueTicketDetail = VenueTicketListItem & {
 export type TicketFilter = "all" | "pending" | "active" | "collected" | "expired";
 
 const FILTER_TO_STATUS: Partial<Record<TicketFilter, TicketStatus[]>> = {
-  active: ["active"],
+  active: ["active", "partially_collected"],
   collected: ["collected"],
   expired: ["expired"],
   pending: ["pending_activation"],
@@ -134,10 +146,11 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
 function emptyAnalyticsData(): VenueAnalyticsData {
   return {
+    byEvent: [],
     hourlyVolume: [],
     itemTypes: [],
     stats: [
-      { label: "Guests", value: "0", tone: "blue" },
+      { label: "Guests", value: "0", tone: "neutral" },
       { label: "Collected", value: "0", tone: "green" },
       { label: "Avg. storage", value: "0m", tone: "neutral" },
       { label: "Utilization", value: "0%", tone: "warning" },
@@ -168,7 +181,7 @@ function isManagerContext(context: AuthorizedContext) {
 async function getVenueMeta(supabase: SupabaseAdmin, venueIds: string[] | null) {
   let query = supabase
     .from("venues")
-    .select("id, name, capacity, address, city, postal_code, contact_email, contact_phone, billing_plan, slug, approval_status, rejection_reason")
+    .select("id, name, capacity, address, city, postal_code, contact_email, contact_phone, billing_plan, slug, approval_status, rejection_reason, ticket_expiry_hours")
     .order("name");
 
   if (venueIds) query = query.in("id", venueIds);
@@ -204,6 +217,7 @@ async function getVenueMeta(supabase: SupabaseAdmin, venueIds: string[] | null) 
           name: first.name,
           postalCode: first.postal_code,
           slug: first.slug,
+          ticketExpiryHours: first.ticket_expiry_hours ?? null,
         } satisfies VenueInfo)
       : null,
   };
@@ -321,7 +335,7 @@ export async function getVenueDashboardData({
     await Promise.all([
       scopedCount().gte("created_at", todayStart),
       scopedCount().eq("status", "pending_activation"),
-      scopedCount().eq("status", "active"),
+      scopedCount().in("status", ["active", "partially_collected"]),
       scopedCount().eq("status", "collected").gte("collected_at", todayStart),
       scopedCount().eq("status", "pending_activation").lt("expires_at", new Date().toISOString()),
       ticketQuery,
@@ -392,7 +406,7 @@ export async function getVenueTicketDetail({
   const supabase = createAdminClient();
   let query = supabase
     .from("tickets")
-    .select("id, public_code, guest_name, guest_email, guest_phone, status, created_at, expires_at, activated_at, collected_at, item_type, item_description, item_count, storage_location, venue_id")
+    .select("id, public_code, guest_name, guest_email, guest_phone, status, created_at, expires_at, activated_at, collected_at, item_type, item_description, item_count, storage_location, venue_id, event_id")
     .eq("id", ticketId);
 
   if (venueIds) query = query.in("venue_id", venueIds);
@@ -400,26 +414,43 @@ export async function getVenueTicketDetail({
   const { data: ticket } = await query.maybeSingle();
   if (!ticket) return null;
 
-  const [venueNames, scans] = await Promise.all([
+  const [venueNames, scans, items, eventRow] = await Promise.all([
     getVenueNameMap(supabase, [ticket.venue_id]),
     supabase
       .from("ticket_scans")
       .select("id, scan_type, result, reason, created_at")
       .eq("ticket_id", ticket.id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("ticket_items")
+      .select("id, label, quantity, notes, collected_at")
+      .eq("ticket_id", ticket.id)
+      .order("added_at", { ascending: true }),
+    ticket.event_id
+      ? supabase.from("events").select("name").eq("id", ticket.event_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   return {
     activatedAt: ticket.activated_at,
     collectedAt: ticket.collected_at,
     createdAt: ticket.created_at,
+    eventName: eventRow.data?.name ?? null,
     expiresAt: ticket.expires_at,
-    guestEmail: ticket.guest_email,
+    guestEmail: ticket.guest_email ?? "",
     guestName: ticket.guest_name,
     guestPhone: ticket.guest_phone,
     id: ticket.id,
     itemCount: ticket.item_count,
     itemDescription: ticket.item_description,
+    items:
+      items.data?.map((i) => ({
+        collectedAt: i.collected_at,
+        id: i.id,
+        label: i.label,
+        notes: i.notes,
+        quantity: i.quantity,
+      })) ?? [],
     itemType: ticket.item_type,
     publicCode: ticket.public_code,
     scans:
@@ -448,7 +479,7 @@ export async function getVenueAnalyticsData(context: AuthorizedContext): Promise
 
   let q = supabase
     .from("tickets")
-    .select("created_at, activated_at, collected_at, status, item_type")
+    .select("id, created_at, activated_at, collected_at, status, item_type, event_id")
     .gte("created_at", since)
     .order("created_at", { ascending: true })
     .limit(500);
@@ -459,7 +490,9 @@ export async function getVenueAnalyticsData(context: AuthorizedContext): Promise
   const tickets = recentTickets ?? [];
   const guests = tickets.length;
   const collected = tickets.filter((t) => t.status === "collected").length;
-  const active = tickets.filter((t) => t.status === "active").length;
+  const active = tickets.filter(
+    (t) => t.status === "active" || t.status === "partially_collected",
+  ).length;
   const storageDurations = tickets
     .filter((t) => t.activated_at && t.collected_at)
     .map(
@@ -472,21 +505,79 @@ export async function getVenueAnalyticsData(context: AuthorizedContext): Promise
       : 0;
   const utilization = venueMeta.capacity > 0 ? Math.round((active / venueMeta.capacity) * 100) : 0;
 
+  // Item types from per-item rows (more accurate than the denormalized blob).
+  const ticketIds = tickets.map((t) => t.id);
+  let itemTypes: VenueAnalyticsData["itemTypes"];
+  if (ticketIds.length > 0) {
+    const { data: itemRows } = await supabase
+      .from("ticket_items")
+      .select("label, quantity")
+      .in("ticket_id", ticketIds);
+    if (itemRows && itemRows.length > 0) {
+      itemTypes = buildItemTypesFromRows(itemRows);
+    } else {
+      itemTypes = buildItemTypes(tickets.map((t) => t.item_type));
+    }
+  } else {
+    itemTypes = [];
+  }
+
+  const byEvent = await buildEventBreakdown(supabase, venueIds, tickets);
+
   return {
+    byEvent,
     hourlyVolume: buildHourlyVolume(tickets.map((t) => t.created_at)),
-    itemTypes: buildItemTypes(tickets.map((t) => t.item_type)),
+    itemTypes,
     stats: [
-      { label: "Guests", value: formatCount(guests), tone: "blue" },
+      { label: "Guests", value: formatCount(guests), tone: "neutral" },
       { label: "Collected", value: formatCount(collected), tone: "green" },
       { label: "Avg. storage", value: formatMinutes(avgStorage), tone: "neutral" },
       {
         label: "Utilization",
         value: `${utilization}%`,
-        tone: utilization >= 90 ? "danger" : utilization >= 70 ? "warning" : "blue",
+        tone: utilization >= 90 ? "danger" : utilization >= 70 ? "warning" : "neutral",
       },
     ],
     venueLabel: venueMeta.label,
   };
+}
+
+async function buildEventBreakdown(
+  supabase: SupabaseAdmin,
+  venueIds: string[] | null,
+  tickets: Array<{ event_id: string | null; status: string }>,
+): Promise<VenueAnalyticsData["byEvent"]> {
+  const eventTickets = tickets.filter((t) => t.event_id);
+  if (eventTickets.length === 0) return [];
+
+  const eventIds = [...new Set(eventTickets.map((t) => t.event_id as string))];
+  let eventsQuery = supabase.from("events").select("id, name, event_date").in("id", eventIds);
+  if (venueIds) eventsQuery = eventsQuery.in("venue_id", venueIds);
+  const { data: events } = await eventsQuery;
+
+  const meta = new Map((events ?? []).map((e) => [e.id, e]));
+  const counts = new Map<string, { tickets: number; collected: number }>();
+  eventTickets.forEach((t) => {
+    const key = t.event_id as string;
+    const entry = counts.get(key) ?? { collected: 0, tickets: 0 };
+    entry.tickets += 1;
+    if (t.status === "collected") entry.collected += 1;
+    counts.set(key, entry);
+  });
+
+  return [...counts.entries()]
+    .map(([id, c]) => {
+      const event = meta.get(id);
+      return {
+        collected: c.collected,
+        eventDate: event?.event_date ?? "",
+        id,
+        name: event?.name ?? "Unknown event",
+        tickets: c.tickets,
+      };
+    })
+    .filter((e) => e.name !== "Unknown event")
+    .sort((a, b) => b.tickets - a.tickets);
 }
 
 function buildHourlyVolume(values: string[]) {
@@ -509,6 +600,19 @@ function buildItemTypes(values: Array<string | null>) {
     const label = v || "Unassigned";
     counts.set(label, (counts.get(label) ?? 0) + 1);
   });
+  return summarizeCounts(counts);
+}
+
+function buildItemTypesFromRows(rows: Array<{ label: string; quantity: number }>) {
+  const counts = new Map<string, number>();
+  rows.forEach((r) => {
+    const label = r.label || "Unassigned";
+    counts.set(label, (counts.get(label) ?? 0) + (r.quantity || 1));
+  });
+  return summarizeCounts(counts);
+}
+
+function summarizeCounts(counts: Map<string, number>) {
   const total = Math.max([...counts.values()].reduce((s, c) => s + c, 0), 1);
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])

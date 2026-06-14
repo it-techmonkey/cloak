@@ -1,5 +1,6 @@
 import GuestCheckInPage from "@/components/guest/GuestCheckInPage";
 import { getSelectableVenues } from "@/lib/tickets";
+import { getActiveEventsForVenues } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,13 @@ function getParam(value: string | string[] | undefined) {
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const [params, venues] = await Promise.all([searchParams, getSelectableVenues()]);
+  const eventsByVenue = await getActiveEventsForVenues(venues.map((v) => v.id));
 
-  return <GuestCheckInPage error={getParam(params.error)} venues={venues} />;
+  return (
+    <GuestCheckInPage
+      error={getParam(params.error)}
+      eventsByVenue={eventsByVenue}
+      venues={venues}
+    />
+  );
 }

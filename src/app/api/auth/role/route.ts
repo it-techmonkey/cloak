@@ -1,16 +1,32 @@
-import { NextResponse } from "next/server";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
-export async function GET() {
-  if (!isSupabaseConfigured()) {
+export async function GET(request: NextRequest) {
+  const env = getSupabaseEnv();
+  if (!env.url || !env.key) {
     return NextResponse.json({ destination: "/" });
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Accept the access token from the Authorization header so this works
+  // immediately after signInWithPassword (before cookies are written)
+  const authHeader = request.headers.get("authorization");
+  const accessToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-  if (!user) {
+  if (!accessToken) {
+    return NextResponse.json({ destination: "/" });
+  }
+
+  // Use the token directly to get the user — no cookie needed
+  const supabase = createServerClient(env.url, env.key, {
+    cookies: { getAll: () => [], setAll: () => {} },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+  });
+
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+
+  if (error || !user) {
     return NextResponse.json({ destination: "/" });
   }
 

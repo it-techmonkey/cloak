@@ -1,4 +1,4 @@
-import { finishVenueSignup } from "@/app/venuesignup/actions";
+﻿import { finishVenueSignup } from "@/app/venuesignup/actions";
 import FieldPreview from "@/components/shared/FieldPreview";
 import Panel from "@/components/shared/Panel";
 import SubmitButton from "@/components/shared/SubmitButton";
@@ -52,7 +52,7 @@ export default function BrandingPreview({
             Manager password
             <input
               autoComplete="new-password"
-              className="w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15"
+              className="w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8"
               minLength={8}
               name="password"
               placeholder="Minimum 8 characters"
@@ -64,7 +64,7 @@ export default function BrandingPreview({
             Confirm password
             <input
               autoComplete="new-password"
-              className="w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15"
+              className="w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8"
               minLength={8}
               name="confirmPassword"
               placeholder="Re-enter password"
@@ -78,3 +78,4 @@ export default function BrandingPreview({
     </Panel>
   );
 }
+

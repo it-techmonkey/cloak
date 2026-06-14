@@ -2,11 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Database } from "@/lib/supabase/database.types";
+
+type TicketStatus = Database["public"]["Enums"]["ticket_status"];
 
 export type CustomerTicket = {
   ticketId: string;
   venueName: string;
-  status: "pending_activation" | "active" | "collected" | "cancelled" | "expired";
+  status: TicketStatus;
   itemType: string | null;
   itemCount: number;
   storageLocation: string | null;

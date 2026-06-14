@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -156,12 +156,22 @@ export default function AuthModal({
 
       onClose();
 
-      // Fetch role-based destination from server (session cookie is now set)
+      // Pass the access token so the server can resolve the role without needing
+      // a cookie (the cookie hasn't been written to the browser yet at this point)
+      const accessToken = signInData.session?.access_token;
       const params = new URLSearchParams(window.location.search);
       const explicitNext = params.get("next");
-      const res = await fetch("/api/auth/role");
-      const { destination } = await res.json() as { destination: string };
-      // For customers, honour an explicit ?next= if present
+
+      let destination = "/";
+      if (accessToken) {
+        const res = await fetch("/api/auth/role", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const json = await res.json() as { destination: string };
+        destination = json.destination;
+      }
+
+      // For customers (destination "/"), honour an explicit ?next= if present
       const finalDestination = (destination === "/" && explicitNext && explicitNext.startsWith("/"))
         ? explicitNext
         : destination;
@@ -196,7 +206,7 @@ export default function AuthModal({
         {/* Close button */}
         <button
           aria-label="Close"
-          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-slate-100 hover:text-foreground"
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-zinc-100 hover:text-foreground"
           onClick={onClose}
           type="button"
         >
@@ -241,7 +251,7 @@ export default function AuthModal({
               {/* OAuth */}
               <div className="grid gap-2.5">
                 <button
-                  className="relative flex items-center justify-center gap-3 rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-foreground transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="relative flex items-center justify-center gap-3 rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-foreground transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isLoading}
                   onClick={() => handleOAuth("google")}
                   type="button"
@@ -278,7 +288,7 @@ export default function AuthModal({
                     <label className="text-xs font-medium text-foreground" htmlFor="auth-name">Full name</label>
                     <input
                       autoComplete="name"
-                      className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-slate-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
+                      className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
                       disabled={isLoading}
                       id="auth-name"
                       onChange={(e) => setName(e.target.value)}
@@ -293,7 +303,7 @@ export default function AuthModal({
                   <label className="text-xs font-medium text-foreground" htmlFor="auth-email">Email</label>
                   <input
                     autoComplete="email"
-                    className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-slate-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
+                    className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
                     disabled={isLoading}
                     id="auth-email"
                     onChange={(e) => setEmail(e.target.value)}
@@ -308,7 +318,7 @@ export default function AuthModal({
                   <label className="text-xs font-medium text-foreground" htmlFor="auth-password">Password</label>
                   <input
                     autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                    className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-slate-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
+                    className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10"
                     disabled={isLoading}
                     id="auth-password"
                     minLength={mode === "signup" ? 8 : undefined}
@@ -363,3 +373,4 @@ export default function AuthModal({
     </div>
   );
 }
+

@@ -21,6 +21,7 @@ export async function createGuestTicket(formData: FormData) {
   const fullName = readField(formData, "fullName");
   const email = normalizeEmail(readField(formData, "email"));
   const mobile = readField(formData, "mobile");
+  const eventId = readField(formData, "event");
 
   if (!isSupabaseAdminConfigured()) {
     fail("Ticket creation is temporarily unavailable.");
@@ -37,7 +38,7 @@ export async function createGuestTicket(formData: FormData) {
   const supabase = createAdminClient();
   const { data: venue, error: venueError } = await supabase
     .from("venues")
-    .select("id")
+    .select("id, ticket_expiry_hours")
     .eq("id", venueId)
     .eq("active", true)
     .eq("approval_status", "approved")
@@ -66,10 +67,27 @@ export async function createGuestTicket(formData: FormData) {
     fail("We could not save your contact details. Please try again.");
   }
 
+  // Only attach the event if it belongs to this venue and is still active.
+  let validEventId: string | null = null;
+  if (eventId) {
+    const { data: event } = await supabase
+      .from("events")
+      .select("id")
+      .eq("id", eventId)
+      .eq("venue_id", venue.id)
+      .eq("active", true)
+      .maybeSingle();
+    validEventId = event?.id ?? null;
+  }
+
   const publicCode = createPublicCode();
   const ticketToken = createTicketToken();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const expiryHours = venue.ticket_expiry_hours;
+  const expiresAt = expiryHours !== null
+    ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString()
+    : new Date("9999-12-31T23:59:59Z").toISOString();
   const { error: ticketError } = await supabase.from("tickets").insert({
+    event_id: validEventId,
     expires_at: expiresAt,
     guest_contact_id: contact.id,
     guest_email: email,

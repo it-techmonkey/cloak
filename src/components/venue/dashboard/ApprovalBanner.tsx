@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState } from "react";
 import { submitQueryResponse } from "@/app/venuedashboard/actions";
@@ -45,22 +45,22 @@ export default function ApprovalBanner({
   return (
     <div
       className={`rounded-xl border px-5 py-4 ${
-        isQueried ? "border-amber-200 bg-amber-50" : "border-blue-100 bg-blue-50"
+        isQueried ? "border-amber-200 bg-amber-50" : "border-zinc-200 bg-zinc-50"
       }`}
     >
       <div className="flex items-start gap-3">
         <span
           className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
-            isQueried ? "bg-amber-500" : "bg-blue-500"
+            isQueried ? "bg-amber-500" : "bg-foreground"
           }`}
         >
           {isQueried ? "?" : "i"}
         </span>
         <div className="min-w-0 flex-1">
-          <p className={`text-sm font-semibold ${isQueried ? "text-amber-900" : "text-blue-900"}`}>
+          <p className={`text-sm font-semibold ${isQueried ? "text-amber-900" : "text-foreground"}`}>
             {isQueried ? "Information requested" : "Awaiting approval"}
           </p>
-          <p className={`mt-1 text-sm ${isQueried ? "text-amber-800" : "text-blue-800"}`}>
+          <p className={`mt-1 text-sm ${isQueried ? "text-amber-800" : "text-muted"}`}>
             {isQueried
               ? "The platform team has a query about your application. Please review and respond below."
               : "Your venue application is under review. You'll be able to use all features once approved. Approvals typically complete within one business day."}
@@ -161,3 +161,4 @@ function QueryResponseForm({
     </div>
   );
 }
+

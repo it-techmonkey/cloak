@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { updateProfile } from "./actions";
+import PhoneInput from "@/components/shared/PhoneInput";
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/15";
+  "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8";
 
 export default function AccountEditForm({
   fullName,
@@ -69,13 +70,12 @@ export default function AccountEditForm({
       </div>
       <div className="grid gap-1.5">
         <label className="text-xs font-medium text-foreground" htmlFor="acc-phone">Phone</label>
-        <input
-          className={inputClass}
+        <PhoneInput
+          defaultValue={phone ?? ""}
           id="acc-phone"
-          onChange={(e) => setPh(e.target.value)}
-          placeholder="+44 7700 000000"
-          type="tel"
-          value={ph}
+          name="phone"
+          onChange={setPh}
+          placeholder="7700 900000"
         />
       </div>
       {message && (
@@ -102,3 +102,4 @@ export default function AccountEditForm({
     </form>
   );
 }
+

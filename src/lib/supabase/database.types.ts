@@ -16,7 +16,7 @@ export type Database = {
       scan_result: "accepted" | "rejected";
       scan_type: "activation" | "checkout" | "rejected";
       slot_status: "available" | "occupied" | "blocked";
-      ticket_status: "pending_activation" | "active" | "collected" | "cancelled" | "expired";
+      ticket_status: "pending_activation" | "active" | "partially_collected" | "collected" | "cancelled" | "expired";
       venue_approval_status: "pending" | "approved" | "rejected" | "suspended";
       venue_staff_role: "staff" | "manager";
     };
@@ -51,6 +51,105 @@ export type Database = {
           id?: string;
           metadata?: Json;
           venue_id?: string | null;
+        };
+        Relationships: [];
+      };
+      events: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          ends_at: string | null;
+          event_date: string;
+          id: string;
+          name: string;
+          starts_at: string | null;
+          venue_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          ends_at?: string | null;
+          event_date: string;
+          id?: string;
+          name: string;
+          starts_at?: string | null;
+          venue_id: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          ends_at?: string | null;
+          event_date?: string;
+          id?: string;
+          name?: string;
+          starts_at?: string | null;
+          venue_id?: string;
+        };
+        Relationships: [];
+      };
+      ticket_items: {
+        Row: {
+          added_at: string;
+          added_by: string | null;
+          collected_at: string | null;
+          collected_by: string | null;
+          id: string;
+          label: string;
+          notes: string | null;
+          quantity: number;
+          ticket_id: string;
+        };
+        Insert: {
+          added_at?: string;
+          added_by?: string | null;
+          collected_at?: string | null;
+          collected_by?: string | null;
+          id?: string;
+          label: string;
+          notes?: string | null;
+          quantity?: number;
+          ticket_id: string;
+        };
+        Update: {
+          added_at?: string;
+          added_by?: string | null;
+          collected_at?: string | null;
+          collected_by?: string | null;
+          id?: string;
+          label?: string;
+          notes?: string | null;
+          quantity?: number;
+          ticket_id?: string;
+        };
+        Relationships: [];
+      };
+      leads: {
+        Row: {
+          capacity_estimate: string | null;
+          contact_email: string;
+          contact_name: string;
+          created_at: string;
+          id: string;
+          message: string | null;
+          venue_name: string;
+        };
+        Insert: {
+          capacity_estimate?: string | null;
+          contact_email: string;
+          contact_name: string;
+          created_at?: string;
+          id?: string;
+          message?: string | null;
+          venue_name: string;
+        };
+        Update: {
+          capacity_estimate?: string | null;
+          contact_email?: string;
+          contact_name?: string;
+          created_at?: string;
+          id?: string;
+          message?: string | null;
+          venue_name?: string;
         };
         Relationships: [];
       };
@@ -237,6 +336,7 @@ export type Database = {
           stripe_price_id: string | null;
           stripe_subscription_id: string | null;
           submitted_at: string | null;
+          ticket_expiry_hours: number | null;
           updated_at: string;
         };
         Insert: {
@@ -265,6 +365,7 @@ export type Database = {
           stripe_price_id?: string | null;
           stripe_subscription_id?: string | null;
           submitted_at?: string | null;
+          ticket_expiry_hours?: number | null;
           updated_at?: string;
         };
         Update: {
@@ -293,6 +394,7 @@ export type Database = {
           stripe_price_id?: string | null;
           stripe_subscription_id?: string | null;
           submitted_at?: string | null;
+          ticket_expiry_hours?: number | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -305,9 +407,10 @@ export type Database = {
           collected_at: string | null;
           checkout_confirmed_by: string | null;
           created_at: string;
+          event_id: string | null;
           expires_at: string;
           guest_contact_id: string | null;
-          guest_email: string;
+          guest_email: string | null;
           guest_name: string;
           guest_phone: string;
           guest_profile_id: string | null;
@@ -329,9 +432,10 @@ export type Database = {
           collected_at?: string | null;
           checkout_confirmed_by?: string | null;
           created_at?: string;
+          event_id?: string | null;
           expires_at: string;
           guest_contact_id?: string | null;
-          guest_email: string;
+          guest_email?: string | null;
           guest_name: string;
           guest_phone: string;
           guest_profile_id?: string | null;
@@ -353,9 +457,10 @@ export type Database = {
           collected_at?: string | null;
           checkout_confirmed_by?: string | null;
           created_at?: string;
+          event_id?: string | null;
           expires_at?: string;
           guest_contact_id?: string | null;
-          guest_email?: string;
+          guest_email?: string | null;
           guest_name?: string;
           guest_phone?: string;
           guest_profile_id?: string | null;

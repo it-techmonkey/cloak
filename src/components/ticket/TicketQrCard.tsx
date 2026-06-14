@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import QRCode from "qrcode";
 import type { TicketView } from "./TicketPage";
 
@@ -29,7 +29,7 @@ export default async function TicketQrCard({ ticket }: { ticket: TicketView }) {
 
       {/* Status banner */}
       {!isUsable && (
-        <div className="border-t border-line bg-slate-50 px-4 py-2 text-center text-xs font-medium text-muted">
+        <div className="border-t border-line bg-zinc-50 px-4 py-2 text-center text-xs font-medium text-muted">
           {ticket.status === "collected" ? "This ticket has been collected" : "This ticket is no longer active"}
         </div>
       )}
@@ -44,3 +44,4 @@ export default async function TicketQrCard({ ticket }: { ticket: TicketView }) {
     </div>
   );
 }
+

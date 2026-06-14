@@ -1,7 +1,11 @@
 import crypto from "node:crypto";
 import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import type { Database } from "@/lib/supabase/database.types";
+
+type TicketStatus = Database["public"]["Enums"]["ticket_status"];
 
 export type PublicVenueOption = {
+  address: string | null;
   id: string;
   label: string;
   name: string;
@@ -16,7 +20,7 @@ export type PublicTicket = {
   itemDescription: string | null;
   itemType: string | null;
   mobile: string;
-  status: "pending_activation" | "active" | "collected" | "cancelled" | "expired";
+  status: TicketStatus;
   storageLocation: string | null;
   ticketId: string;
   venueAddress: string | null;
@@ -34,7 +38,7 @@ export async function getSelectableVenues(): Promise<PublicVenueOption[]> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("venues")
-    .select("id, name, slug, city")
+    .select("id, name, slug, city, address")
     .eq("active", true)
     .eq("approval_status", "approved")
     .in("billing_status", ["trialing", "active"])
@@ -45,6 +49,7 @@ export async function getSelectableVenues(): Promise<PublicVenueOption[]> {
   }
 
   return data.map((venue) => ({
+    address: venue.address ?? null,
     id: venue.id,
     label: venue.city ? `${venue.name}, ${venue.city}` : venue.name,
     name: venue.name,
@@ -99,7 +104,7 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
   return {
     status: status === "expired" ? ("expired" as const) : ("found" as const),
     ticket: {
-      email: data.guest_email,
+      email: data.guest_email ?? "",
       expiresAt: data.expires_at,
       guestName: data.guest_name,
       itemCount: data.item_count,

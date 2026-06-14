@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import AuthStatePage from "@/components/auth/AuthStatePage";
 import VenueSettingsPage from "@/components/venue/settings/VenueSettingsPage";
 import { requireVenueAccess } from "@/lib/auth/guards";
@@ -19,11 +20,17 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     );
   }
 
-  const params = await searchParams;
+  const [params, headerList] = await Promise.all([searchParams, headers()]);
   const data = await getVenueDashboardData({ context: guard });
+
+  const host = headerList.get("host") ?? "localhost:3000";
+  const protocol = host.startsWith("localhost") ? "http" : "https";
+  const origin = `${protocol}://${host}`;
+  const checkInUrl = data.venue ? `${origin}/customer-signup?venue=${data.venue.id}` : null;
 
   return (
     <VenueSettingsPage
+      checkInUrl={checkInUrl}
       error={params.error}
       message={params.message}
       profile={data.profile}

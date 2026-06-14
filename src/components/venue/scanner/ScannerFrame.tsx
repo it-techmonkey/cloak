@@ -1,303 +1,13 @@
-"use client";
+﻿"use client";
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { handleScannerAction } from "@/app/venuescanner/actions";
-import { initialScannerState, type ScannerState, type ScannerTicket } from "@/app/venuescanner/types";
+import { initialScannerState } from "@/app/venuescanner/types";
 import CameraScanner from "./CameraScanner";
-
-const PRESET_ITEM_TYPES = [
-  "Bag",
-  "Backpack",
-  "Coat",
-  "Jacket",
-  "Helmet",
-  "Luggage",
-  "Electronics",
-  "Sports equipment",
-  "Package",
-];
-
-// Sentinel value for the "Other" free-text option — never saved to DB
-const OTHER_SENTINEL = "__other__";
+import { ActivationForm, CheckoutForm, GuestCard } from "./TicketActionForms";
 
 const AUTO_RESET_MS = 5000;
-
-const fieldClass =
-  "rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 transition";
-
-// ─── Guest info card ──────────────────────────────────────────────────────────
-
-function GuestCard({ ticket }: { ticket: ScannerTicket }) {
-  const isPending = ticket.status === "pending_activation";
-  const isStored = ticket.status === "active";
-
-  return (
-    <div className="rounded-xl border border-line bg-panel p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-base font-semibold text-foreground">{ticket.guestName}</p>
-          <p className="mt-0.5 font-mono text-xs text-muted">{ticket.publicCode}</p>
-        </div>
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-            isStored
-              ? "bg-emerald-50 text-emerald-700"
-              : isPending
-                ? "bg-amber-50 text-amber-700"
-                : "bg-red-50 text-red-700"
-          }`}
-        >
-          {isStored ? "Stored" : isPending ? "Pending" : ticket.status}
-        </span>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted">
-        <span>{ticket.guestPhone}</span>
-        <span>{ticket.venueName}</span>
-        {ticket.itemType ? (
-          <span>
-            {ticket.itemCount > 1 ? `${ticket.itemCount}× ` : ""}
-            {ticket.itemType}
-          </span>
-        ) : null}
-        {ticket.storageLocation ? (
-          <span className="font-semibold text-foreground">Cloak {ticket.storageLocation}</span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-// ─── Multi-item activation form ───────────────────────────────────────────────
-
-type ItemLine = { type: string; count: string; custom: string };
-
-function ActivationForm({
-  formAction,
-  pending,
-  ticket,
-}: {
-  formAction: (fd: FormData) => void;
-  pending: boolean;
-  ticket: ScannerTicket;
-}) {
-  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: "1", custom: "" }]);
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
-
-  function addLine() {
-    setItems((prev) => [...prev, { type: "", count: "1", custom: "" }]);
-  }
-
-  function removeLine(i: number) {
-    setItems((prev) => prev.filter((_, idx) => idx !== i));
-  }
-
-  function updateLine(i: number, field: "type" | "count" | "custom", value: string) {
-    setItems((prev) =>
-      prev.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)),
-    );
-  }
-
-  // Resolve the display label for an item — custom text takes over when selected
-  function resolvedType(item: ItemLine): string {
-    return item.type === OTHER_SENTINEL ? item.custom.trim() : item.type;
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    const valid = items.filter((item) => {
-      const label = resolvedType(item);
-      return label && parseInt(item.count, 10) > 0;
-    });
-
-    if (valid.length === 0) {
-      setError("Select at least one item type.");
-      return;
-    }
-
-    // Check any "Custom" rows have actual text filled in
-    const missingCustom = valid.some(
-      (item) => item.type === OTHER_SENTINEL && !item.custom.trim(),
-    );
-    if (missingCustom) {
-      setError("Specify what the item is for the 'Other' row.");
-      return;
-    }
-
-    const totalCount = valid.reduce((sum, item) => sum + parseInt(item.count, 10), 0);
-    const itemSummary = valid.map((item) => `${item.count}× ${resolvedType(item)}`).join(", ");
-    const description = notes.trim() ? `${itemSummary}\n${notes.trim()}` : itemSummary;
-
-    const fd = new FormData();
-    fd.set("_action", "activate");
-    fd.set("ticketId", ticket.id);
-    fd.set("itemType", resolvedType(valid[0]));
-    fd.set("itemCount", String(totalCount));
-    fd.set("itemDescription", description);
-
-    startTransition(() => formAction(fd));
-  }
-
-  return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
-      {/* Item rows */}
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-          Items to store
-        </p>
-        <div className="space-y-2">
-          {items.map((item, i) => (
-            <div className="flex flex-col gap-1.5" key={i}>
-              <div className="flex items-center gap-2">
-                {/* Type dropdown */}
-                <select
-                  className={`${fieldClass} min-w-0 flex-1`}
-                  onChange={(e) => updateLine(i, "type", e.target.value)}
-                  required
-                  value={item.type}
-                >
-                  <option value="" disabled>Item type</option>
-                  {PRESET_ITEM_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                  <option value={OTHER_SENTINEL}>Other</option>
-                </select>
-
-                {/* Qty — digits only, 1-99 */}
-                <input
-                  className={`${fieldClass} w-14 shrink-0 text-center`}
-                  inputMode="numeric"
-                  maxLength={2}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, "");
-                    if (digits === "") { updateLine(i, "count", ""); return; }
-                    const n = Math.min(Math.max(parseInt(digits, 10), 1), 99);
-                    updateLine(i, "count", String(n));
-                  }}
-                  placeholder="1"
-                  type="text"
-                  value={item.count}
-                />
-
-                {items.length > 1 && (
-                  <button
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-foreground/30 hover:text-foreground"
-                    onClick={() => removeLine(i)}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              {/* Custom label — appears below the row when "Custom…" is chosen */}
-              {item.type === OTHER_SENTINEL && (
-                <input
-                  autoFocus
-                  className={`${fieldClass} w-full`}
-                  onChange={(e) => updateLine(i, "custom", e.target.value)}
-                  placeholder="Specify item (e.g. Pushchair, Scooter, Musical instrument…)"
-                  type="text"
-                  value={item.custom}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        <button
-          className="mt-2 text-xs font-medium text-muted hover:text-foreground"
-          onClick={addLine}
-          type="button"
-        >
-          + Add another item
-        </button>
-      </div>
-
-      {/* Notes */}
-      <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">
-          Notes <span className="normal-case font-normal">(optional)</span>
-        </label>
-        <textarea
-          className={`${fieldClass} w-full min-h-16 resize-none`}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Colour, brand, or distinguishing features…"
-          value={notes}
-        />
-      </div>
-
-      {error ? <p className="text-xs font-medium text-red-600">{error}</p> : null}
-
-      <p className="text-xs text-muted">
-        A cloak number will be automatically assigned on activation.
-      </p>
-
-      <button
-        className="w-full rounded-xl bg-foreground py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-        disabled={pending}
-        type="submit"
-      >
-        {pending ? "Confirming…" : "Confirm activation"}
-      </button>
-    </form>
-  );
-}
-
-// ─── Checkout confirmation ────────────────────────────────────────────────────
-
-function CheckoutForm({
-  formAction,
-  pending,
-  ticket,
-}: {
-  formAction: (fd: FormData) => void;
-  pending: boolean;
-  ticket: ScannerTicket;
-}) {
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const fd = new FormData();
-    fd.set("_action", "checkout");
-    fd.set("ticketId", ticket.id);
-    startTransition(() => formAction(fd));
-  }
-
-  return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
-      {ticket.itemType ? (
-        <div className="rounded-xl border border-line bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-            Items to return
-          </p>
-          <p className="mt-2 text-sm font-medium text-foreground">
-            {ticket.itemCount > 1 ? `${ticket.itemCount}× ` : ""}
-            {ticket.itemType}
-          </p>
-          {ticket.storageLocation ? (
-            <p className="mt-1 text-xs text-muted">
-              Cloak <span className="font-semibold text-foreground">{ticket.storageLocation}</span>
-            </p>
-          ) : null}
-          {ticket.itemDescription ? (
-            <p className="mt-1 text-xs text-muted">{ticket.itemDescription}</p>
-          ) : null}
-        </div>
-      ) : null}
-      <p className="text-xs text-muted">
-        Only confirm once the guest has physically received their item.
-      </p>
-      <button
-        className="w-full rounded-xl bg-foreground py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-        disabled={pending}
-        type="submit"
-      >
-        {pending ? "Confirming…" : "Confirm collection"}
-      </button>
-    </form>
-  );
-}
+const FLASH_DURATION_MS = 1500;
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -305,19 +15,26 @@ export default function ScannerFrame() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, formAction, pending] = useActionState(handleScannerAction, initialScannerState);
+  const [flashTone, setFlashTone] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
-    if (state.status !== "success") return;
-    resetTimerRef.current = setTimeout(() => {
-      const fd = new FormData();
-      fd.set("_action", "reset");
-      startTransition(() => formAction(fd));
-      if (inputRef.current) inputRef.current.value = "";
-    }, AUTO_RESET_MS);
+    if (state.status === "success") {
+      setFlashTone("success");
+      setTimeout(() => setFlashTone(null), FLASH_DURATION_MS);
+      resetTimerRef.current = setTimeout(() => {
+        const fd = new FormData();
+        fd.set("_action", "reset");
+        startTransition(() => formAction(fd));
+        if (inputRef.current) inputRef.current.value = "";
+      }, AUTO_RESET_MS);
+    } else if (state.status === "error") {
+      setFlashTone("error");
+      setTimeout(() => setFlashTone(null), FLASH_DURATION_MS);
+    }
     return () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     };
-  }, [state.status, formAction]);
+  }, [state.status, state.message, formAction]);
 
   function handleCameraDetection(value: string) {
     if (inputRef.current) inputRef.current.value = value;
@@ -336,22 +53,35 @@ export default function ScannerFrame() {
   const ticketReady = (isActivation || isCheckout) && ticket;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="relative grid gap-5 lg:grid-cols-2">
+      {/* Full-bleed flash overlay */}
+      {flashTone && (
+        <div
+          className={`pointer-events-none fixed inset-0 z-50 transition-opacity duration-300 ${
+            flashTone === "success" ? "bg-emerald-400/30" : "bg-red-400/30"
+          }`}
+        />
+      )}
+
       {/* Left — camera + code input (hidden on mobile once ticket is ready) */}
       <div className={`space-y-4 ${ticketReady ? "hidden lg:block" : ""}`}>
         <CameraScanner disabled={pending} onDetected={handleCameraDetection} />
 
-        <form action={formAction} className="flex gap-2">
+        <form action={formAction} className="flex flex-col gap-2 sm:flex-row">
           <input name="_action" type="hidden" value="lookup" />
           <input
+            autoCapitalize="characters"
             autoComplete="off"
-            className="min-w-0 flex-1 rounded-xl border border-line bg-white px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted focus:border-foreground/30 transition"
+            className="min-w-0 flex-1 rounded-xl border border-line bg-white px-4 py-3.5 text-base font-mono uppercase text-foreground outline-none placeholder:text-muted placeholder:normal-case placeholder:font-sans placeholder:text-sm focus:border-foreground/30 transition"
             name="lookupValue"
+            onChange={(e) => {
+              if (inputRef.current) inputRef.current.value = e.target.value.toUpperCase();
+            }}
             placeholder="Paste QR link or enter CLK-… code"
             ref={inputRef}
           />
           <button
-            className="shrink-0 rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+            className="rounded-xl bg-foreground px-6 py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
             disabled={pending}
             type="submit"
           >
@@ -401,9 +131,9 @@ export default function ScannerFrame() {
               <GuestCard ticket={ticket} />
             </div>
 
-            <div className="rounded-xl border border-line bg-slate-50 p-4 sm:p-5">
+            <div className="rounded-xl border border-line bg-zinc-50 p-4 sm:p-5">
               <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted">
-                {isActivation ? "Record items" : "Confirm collection"}
+                {isActivation ? "Record items" : "Return or add items"}
               </p>
               {isActivation ? (
                 <ActivationForm formAction={formAction} pending={pending} ticket={ticket} />
@@ -413,7 +143,7 @@ export default function ScannerFrame() {
             </div>
           </div>
         ) : (
-          <div className="hidden rounded-xl border border-line bg-slate-50 p-6 lg:block">
+          <div className="hidden rounded-xl border border-line bg-zinc-50 p-6 lg:block">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted">
               Waiting for scan
             </p>
@@ -435,3 +165,4 @@ export default function ScannerFrame() {
     </div>
   );
 }
+

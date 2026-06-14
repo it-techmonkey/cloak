@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { PrimaryLink, SecondaryLink } from "@/components/shared/ButtonLink";
 import PageShell from "@/components/shared/PageShell";
 import Panel from "@/components/shared/Panel";
@@ -99,7 +99,7 @@ function StaffRoster({ staff }: { staff: VenueDashboardData["staff"] }) {
   return (
     <Panel title="Staff on roster">
       {staff.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-line bg-slate-50 px-4 py-5 text-center text-sm text-muted">
+        <div className="rounded-lg border border-dashed border-line bg-zinc-50 px-4 py-5 text-center text-sm text-muted">
           No staff accounts yet.{" "}
           <Link className="font-medium text-brand hover:underline" href="/venuesettings">
             Add staff
@@ -128,3 +128,4 @@ function StaffRoster({ staff }: { staff: VenueDashboardData["staff"] }) {
     </Panel>
   );
 }
+

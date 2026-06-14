@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useAuth } from "./AuthProvider";
@@ -16,7 +16,7 @@ export default function AuthButton({ className }: { className?: string }) {
 
     return (
       <Link
-        className={`flex items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm font-medium text-foreground transition hover:bg-slate-50 ${className ?? ""}`}
+        className={`flex items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm font-medium text-foreground transition hover:bg-zinc-50 ${className ?? ""}`}
         href="/account"
       >
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-foreground text-[10px] font-bold text-white">
@@ -29,7 +29,7 @@ export default function AuthButton({ className }: { className?: string }) {
 
   return (
     <button
-      className={`rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-slate-50 ${className ?? ""}`}
+      className={`rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-zinc-50 ${className ?? ""}`}
       onClick={() => openAuthModal("signin")}
       type="button"
     >
@@ -37,3 +37,4 @@ export default function AuthButton({ className }: { className?: string }) {
     </button>
   );
 }
+

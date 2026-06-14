@@ -5,7 +5,7 @@ import { requireVenueAccess } from "@/lib/auth/guards";
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const guard = await requireVenueAccess("/smsbackup", ["manager"]);
+  const guard = await requireVenueAccess("/smsbackup", ["staff", "manager"]);
 
   if (guard.status === "not_configured") {
     return (
@@ -16,5 +16,6 @@ export default async function Page() {
     );
   }
 
-  return <SmsBackupPage />;
+  const isManager = guard.venueRoles.some((r) => r.role === "manager");
+  return <SmsBackupPage venueRole={isManager ? "manager" : "staff"} />;
 }

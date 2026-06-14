@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -47,7 +47,7 @@ function CapacityBar({ used, total }: { used: number; total: number }) {
           {used} / {total}
         </span>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100">
         <div
           className={`h-full rounded-full transition-all duration-500 ${color}`}
           style={{ width: `${pct}%` }}
@@ -168,3 +168,4 @@ export default function LiveDashboardStats({
     </>
   );
 }
+

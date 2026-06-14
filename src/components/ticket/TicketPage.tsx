@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -19,13 +19,76 @@ export type TicketView = {
   itemType: string | null;
   mobile: string;
   qrValue: string;
-  status?: "pending_activation" | "active" | "collected" | "cancelled" | "expired";
+  status?: "pending_activation" | "active" | "partially_collected" | "collected" | "cancelled" | "expired";
   storageLocation: string | null;
   ticketId: string;
   venueAddress: string | null;
   venueId: string;
   venueName: string;
 };
+
+function StatusPill({ status }: { status: TicketView["status"] }) {
+  const map: Record<
+    NonNullable<TicketView["status"]>,
+    { label: string; cls: string }
+  > = {
+    pending_activation:    { label: "Awaiting activation", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+    active:                { label: "Items stored",        cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    partially_collected:   { label: "Partially collected", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    collected:             { label: "Collected",           cls: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+    cancelled:          { label: "Cancelled",            cls: "bg-red-50 text-red-600 border-red-200" },
+    expired:            { label: "Expired",              cls: "bg-red-50 text-red-600 border-red-200" },
+  };
+  const s = status ?? "pending_activation";
+  const { label, cls } = map[s];
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+function useCountdown(expiresAt: string) {
+  const getSecondsLeft = () => Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+  const [secondsLeft, setSecondsLeft] = useState(getSecondsLeft);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const id = setInterval(() => setSecondsLeft(getSecondsLeft), 1000);
+    return () => clearInterval(id);
+  });
+
+  return secondsLeft;
+}
+
+function ExpiryCountdown({ expiresAt, status }: { expiresAt: string; status: TicketView["status"] }) {
+  const secondsLeft = useCountdown(expiresAt);
+
+  // No expiry = far future year (9999) — skip countdown
+  if (new Date(expiresAt).getFullYear() >= 9000) return null;
+  if (status === "collected" || status === "partially_collected" || status === "cancelled" || status === "expired") return null;
+
+  const h = Math.floor(secondsLeft / 3600);
+  const m = Math.floor((secondsLeft % 3600) / 60);
+  const s = secondsLeft % 60;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const display = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+
+  const urgencyClass =
+    secondsLeft <= 15 * 60
+      ? "text-red-600 border-red-200 bg-red-50"
+      : secondsLeft <= 60 * 60
+        ? "text-amber-600 border-amber-200 bg-amber-50"
+        : "text-muted border-line bg-panel";
+
+  return (
+    <div className={`flex items-center justify-between rounded-lg border px-3.5 py-3 ${urgencyClass}`}>
+      <span className="text-xs font-semibold uppercase tracking-wide">Ticket expires in</span>
+      <span className="font-mono text-sm font-bold tabular-nums">{display}</span>
+    </div>
+  );
+}
 
 export default function TicketPage({
   ticket: initial,
@@ -79,16 +142,6 @@ export default function TicketPage({
   const isCancelled = ticket.status === "cancelled";
   const isClosed = isCollected || isExpired || isCancelled;
 
-  const title = isActive
-    ? "Items stored"
-    : isCollected
-      ? "Collection complete"
-      : isExpired
-        ? "Ticket expired"
-        : isCancelled
-          ? "Ticket cancelled"
-          : "Awaiting activation";
-
   const description = isCollected
     ? "Your items have been returned. This ticket is now closed."
     : isExpired
@@ -104,10 +157,17 @@ export default function TicketPage({
       <main className="mx-auto flex w-full max-w-sm flex-col gap-4 px-4 py-6 sm:max-w-md">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted">Cloak</p>
-            <h1 className="mt-1 text-2xl font-semibold text-foreground">{title}</h1>
-            <p className="mt-1.5 text-sm leading-6 text-muted">{description}</p>
+          <div className="min-w-0">
+            <Link
+              className="text-xs font-semibold uppercase tracking-widest text-muted hover:text-foreground"
+              href="/"
+            >
+              Cloak
+            </Link>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <StatusPill status={ticket.status} />
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted">{description}</p>
           </div>
           {user ? (
             <Link
@@ -122,15 +182,29 @@ export default function TicketPage({
             </Link>
           ) : (
             <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-foreground text-xs font-bold text-white transition hover:bg-zinc-700"
+              className="shrink-0 rounded-xl border border-line bg-panel px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-zinc-50"
               onClick={() => openAuthModal("signin")}
               title="Sign in"
               type="button"
             >
-              CL
+              Sign in
             </button>
           )}
         </div>
+
+        {/* Expiry countdown */}
+        <ExpiryCountdown expiresAt={ticket.expiresAt} status={ticket.status} />
+
+        {/* Collected celebration state */}
+        {isCollected && (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-8 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl">✓</span>
+            <div>
+              <p className="font-semibold text-emerald-800">Thanks for using Cloak</p>
+              <p className="mt-1 text-sm text-emerald-700">Your items have been safely returned. See you next time!</p>
+            </div>
+          </div>
+        )}
 
         {/* Cloak number + items — when active or collected */}
         {(isActive || isCollected) && ticket.itemType ? (
@@ -188,7 +262,6 @@ export default function TicketPage({
                 href={`/api/wallet/apple?${walletParam}`}
               >
                 <span className="flex items-center gap-2.5">
-                  {/* Apple logo */}
                   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 814 1000">
                     <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-150.3-96.8C67.3 716.9 24 599 24 481.3c0-170.7 111.4-261.1 221-261.1 75.8 0 138.3 43.4 186.9 43.4 46.3 0 118.5-48.8 208.3-48.8 31.5 0 134.4 2.6 204.4 99.4zm-340.2-168c31.5-37.1 54.2-88.8 54.2-140.5 0-7.1-.6-14.3-1.9-20.1-51.5 1.9-112.3 34.2-149.1 75.8-28.5 32.4-55.1 83.5-55.1 135.8 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 46.3 0 102.9-31.1 136.4-70.4z" />
                   </svg>
@@ -216,13 +289,12 @@ export default function TicketPage({
 
             {wallet.googleEnabled ? (
               <a
-                className="flex items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-foreground transition hover:bg-slate-50"
+                className="flex items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-foreground transition hover:bg-zinc-50"
                 href={`/api/wallet/google?${walletParam}`}
                 rel="noopener noreferrer"
                 target="_blank"
               >
                 <span className="flex items-center gap-2.5">
-                  {/* Google "G" logo */}
                   <svg className="h-5 w-5" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -284,3 +356,4 @@ function parseItemLines(
   }
   return parsed.length > 0 ? parsed : [{ label: fallbackType, count: fallbackCount }];
 }
+

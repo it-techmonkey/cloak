@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef } from "react";
 import type { AdminVenueReview } from "@/lib/admin-dashboard";
@@ -121,7 +121,7 @@ export default function VenueMapPanel({ venues }: { venues: AdminVenueReview[] }
       {/* Map — no overflow-hidden here so markers aren't clipped at the edges */}
       <div className="relative h-80 overflow-hidden rounded-b-xl">
         {mapped.length === 0 && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-50/90 text-center text-sm text-muted">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-zinc-50/90 text-center text-sm text-muted">
             <svg className="h-8 w-8 opacity-30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
               <path d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" strokeLinecap="round" strokeLinejoin="round" />
@@ -139,3 +139,4 @@ export default function VenueMapPanel({ venues }: { venues: AdminVenueReview[] }
     </div>
   );
 }
+

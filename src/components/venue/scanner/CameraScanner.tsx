@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
@@ -244,7 +244,7 @@ export default function CameraScanner({
           </>
         ) : (
           <button
-            className="w-full rounded-lg border border-line py-2.5 text-sm font-medium text-foreground transition hover:bg-slate-50 disabled:opacity-40"
+            className="w-full rounded-lg border border-line py-2.5 text-sm font-medium text-foreground transition hover:bg-zinc-50 disabled:opacity-40"
             disabled={disabled}
             onClick={startCamera}
             type="button"
@@ -256,3 +256,4 @@ export default function CameraScanner({
     </div>
   );
 }
+
