@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useTransition } from "react";
 import {
@@ -6,31 +6,29 @@ import {
   queryVenue,
   suspendVenue,
 } from "@/app/masterdashboard/actions";
-import Panel from "@/components/shared/Panel";
-import StatusPill, { type StatusTone } from "@/components/shared/StatusPill";
 import type { AdminVenueReview } from "@/lib/admin-dashboard";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected" | "suspended";
 
 const STATUS_TABS: Array<{ label: string; value: StatusFilter }> = [
   { label: "All", value: "all" },
-  { label: "Pending", value: "pending" },
+  { label: "Pending review", value: "pending" },
   { label: "Approved", value: "approved" },
   { label: "Rejected", value: "rejected" },
   { label: "Suspended", value: "suspended" },
 ];
 
-const STATUS_TONE: Record<AdminVenueReview["status"], StatusTone> = {
-  approved: "green",
-  pending: "warning",
-  rejected: "danger",
-  suspended: "neutral",
+const STATUS_DOT: Record<AdminVenueReview["status"], string> = {
+  approved: "bg-zinc-800",
+  pending:  "bg-zinc-400",
+  rejected: "bg-zinc-300",
+  suspended: "bg-zinc-300",
 };
 
 const STATUS_LABEL: Record<AdminVenueReview["status"], string> = {
-  approved: "Approved",
-  pending: "Pending",
-  rejected: "Rejected",
+  approved:  "Approved",
+  pending:   "Pending",
+  rejected:  "Rejected",
   suspended: "Suspended",
 };
 
@@ -49,7 +47,34 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-// ─── Query thread parsing ─────────────────────────────────────────────────────
+// A monochrome status badge — just a dot + label, no pastel backgrounds.
+function StatusBadge({ venue }: { venue: AdminVenueReview }) {
+  const isQueried = venue.status === "pending" && Boolean(venue.queryMessage);
+  const label = isQueried ? "Queried" : STATUS_LABEL[venue.status];
+  const dot = STATUS_DOT[venue.status];
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+      <span className="text-sm text-foreground">{label}</span>
+    </span>
+  );
+}
+
+function ChevronDown({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      viewBox="0 0 24 24"
+    >
+      <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ─── Query thread ─────────────────────────────────────────────────────────────
 
 type ThreadTurn = { from: "admin" | "venue"; text: string };
 
@@ -66,37 +91,23 @@ function parseQueryThread(raw: string | null): ThreadTurn[] {
   return turns;
 }
 
-// ─── Query thread UI ──────────────────────────────────────────────────────────
-
 function QueryThread({ turns }: { turns: ThreadTurn[] }) {
   if (turns.length === 0) return null;
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {turns.map((turn, i) => (
-        <div
-          className={`flex gap-2.5 ${turn.from === "venue" ? "flex-row-reverse" : ""}`}
-          key={i}
-        >
-          {/* Avatar */}
-          <span
-            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white ${
-              turn.from === "admin" ? "bg-foreground" : "bg-amber-500"
-            }`}
-          >
+        <div className={`flex gap-3 ${turn.from === "venue" ? "flex-row-reverse" : ""}`} key={i}>
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-bold tracking-wider text-zinc-600">
             {turn.from === "admin" ? "AD" : "VN"}
           </span>
-
-          {/* Bubble */}
           <div
-            className={`max-w-[80%] rounded-xl px-3 py-2.5 text-xs leading-5 ${
+            className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
               turn.from === "admin"
                 ? "rounded-tl-none bg-zinc-100 text-foreground"
-                : "rounded-tr-none bg-amber-50 text-amber-900"
+                : "rounded-tr-none bg-zinc-200/60 text-foreground"
             }`}
           >
-            <p className={`mb-1 text-[10px] font-semibold uppercase tracking-wider ${
-              turn.from === "admin" ? "text-muted" : "text-amber-600"
-            }`}>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted">
               {turn.from === "admin" ? "Platform team" : "Venue"}
             </p>
             {turn.text}
@@ -107,9 +118,9 @@ function QueryThread({ turns }: { turns: ThreadTurn[] }) {
   );
 }
 
-// ─── Action buttons ───────────────────────────────────────────────────────────
+// ─── Action button ────────────────────────────────────────────────────────────
 
-function ActionButton({
+function ActionBtn({
   children,
   className,
   disabled,
@@ -124,14 +135,14 @@ function ActionButton({
 }) {
   return (
     <button
-      className={`${className} disabled:opacity-50`}
+      className={`${className} disabled:opacity-40`}
       disabled={disabled || pending}
       onClick={onClick}
       type="button"
     >
       {pending ? (
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <span className="flex items-center justify-center gap-2">
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
           {children}
         </span>
       ) : (
@@ -141,7 +152,18 @@ function ActionButton({
   );
 }
 
-// ─── Expanded venue detail panel ──────────────────────────────────────────────
+// ─── Detail field ─────────────────────────────────────────────────────────────
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">{label}</p>
+      <p className="mt-0.5 text-sm text-foreground">{value || "—"}</p>
+    </div>
+  );
+}
+
+// ─── Expanded detail panel ────────────────────────────────────────────────────
 
 function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose: () => void }) {
   const [newQuery, setNewQuery] = useState("");
@@ -161,176 +183,185 @@ function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose
 
   return (
     <tr>
-      <td className="bg-zinc-50 px-4 py-5" colSpan={5}>
-        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-
-          {/* Left — query thread */}
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                {thread.length > 0 ? "Query thread" : "No queries yet"}
-              </p>
-              <button
-                className="text-xs text-muted hover:text-foreground"
-                onClick={onClose}
-                type="button"
-              >
-                Close ✕
-              </button>
+      <td colSpan={5} className="p-0">
+        <div className="border-b border-t border-line bg-zinc-50">
+          {/* Panel header */}
+          <div className="flex items-center justify-between border-b border-line px-6 py-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-xs font-bold text-zinc-500">
+                {venue.name.slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{venue.name}</p>
+                <p className="text-xs text-muted">{venue.contactEmail}</p>
+              </div>
             </div>
-
-            {thread.length > 0 ? (
-              <div className="mb-4 space-y-1 rounded-xl border border-line bg-white p-4">
-                <QueryThread turns={thread} />
-              </div>
-            ) : (
-              <div className="mb-4 rounded-xl border border-dashed border-line bg-white px-4 py-6 text-center text-xs text-muted">
-                No messages yet. Send a query to request more information from the venue.
-              </div>
-            )}
-
-            {/* Send new query or follow-up */}
-            {view === "query" ? (
-              <div className="space-y-2">
-                <textarea
-                  autoFocus
-                  className="w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted focus:border-amber-400 focus:ring-2 focus:ring-amber-100 resize-none"
-                  onChange={(e) => setNewQuery(e.target.value)}
-                  placeholder="Describe what information or changes are needed before approval…"
-                  rows={3}
-                  value={newQuery}
-                />
-                <div className="flex gap-2">
-                  <ActionButton
-                    className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
-                    disabled={!newQuery.trim()}
-                    onClick={() => { runAction(queryVenue, { message: newQuery }); setView("actions"); setNewQuery(""); }}
-                    pending={isPending}
-                  >
-                    Send query
-                  </ActionButton>
-                  <button
-                    className="text-xs text-muted hover:text-foreground"
-                    onClick={() => setView("actions")}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : null}
+            <button
+              aria-label="Close"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-zinc-200 hover:text-foreground"
+              onClick={onClose}
+              type="button"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </div>
 
-          {/* Right — venue info + actions */}
-          <div className="space-y-4">
-            {/* Venue details */}
-            <div className="rounded-xl border border-line bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted">Details</p>
-              <div className="mt-3 space-y-2.5 text-sm">
-                {/* Full address block */}
-                <div className="rounded-lg bg-zinc-50 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1">Address</p>
-                  <p className="text-sm font-medium text-foreground leading-5">
-                    {[venue.address, venue.city, venue.postalCode].filter(Boolean).join(", ") || "—"}
+          <div className="grid gap-4 p-6 lg:grid-cols-[1fr_280px]">
+
+            {/* Left — details + thread */}
+            <div className="space-y-4">
+              <div className="rounded-xl border border-line bg-white p-5">
+                <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-muted">Venue details</p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3">
+                  <DetailField
+                    label="Address"
+                    value={[venue.address, venue.city, venue.postalCode].filter(Boolean).join(", ")}
+                  />
+                  <DetailField label="Capacity" value={venue.capacity ? `${venue.capacity} slots` : "—"} />
+                  <DetailField label="Plan" value={formatPlan(venue.billingPlan)} />
+                  <DetailField label="Billing" value={venue.billingStatus} />
+                  <DetailField label="Submitted" value={formatDate(venue.submittedAt)} />
+                  {venue.contactPhone && <DetailField label="Phone" value={venue.contactPhone} />}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-line bg-white p-5">
+                <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-muted">
+                  Communication thread
+                </p>
+                {thread.length > 0 ? (
+                  <QueryThread turns={thread} />
+                ) : (
+                  <p className="rounded-lg border border-dashed border-line px-4 py-5 text-center text-sm text-muted">
+                    No messages yet. Use "Request information" below to open a thread.
                   </p>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted">Plan</span>
-                  <span className="font-medium text-foreground">{formatPlan(venue.billingPlan)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted">Capacity</span>
-                  <span className="font-medium text-foreground">{venue.capacity} slots</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted">Submitted</span>
-                  <span className="font-medium text-foreground">{formatDate(venue.submittedAt)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="shrink-0 text-muted">Email</span>
-                  <span className="truncate font-medium text-foreground">{venue.contactEmail}</span>
-                </div>
-                {venue.contactPhone && (
-                  <div className="flex justify-between gap-2">
-                    <span className="text-muted">Phone</span>
-                    <span className="font-medium text-foreground">{venue.contactPhone}</span>
+                )}
+
+                {view === "query" && (
+                  <div className="mt-4 space-y-3">
+                    <textarea
+                      autoFocus
+                      className="w-full resize-none rounded-xl border border-line bg-zinc-50 px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
+                      onChange={(e) => setNewQuery(e.target.value)}
+                      placeholder="What information is needed before this venue can be approved?"
+                      rows={3}
+                      value={newQuery}
+                    />
+                    <div className="flex items-center gap-2">
+                      <ActionBtn
+                        className="rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-white transition hover:opacity-80"
+                        disabled={!newQuery.trim()}
+                        onClick={() => { runAction(queryVenue, { message: newQuery }); setView("actions"); setNewQuery(""); }}
+                        pending={isPending}
+                      >
+                        Send query
+                      </ActionBtn>
+                      <button
+                        className="text-sm text-muted hover:text-foreground"
+                        onClick={() => setView("actions")}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="rounded-xl border border-line bg-white p-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Actions</p>
+            {/* Right — actions */}
+            <div className="rounded-xl border border-line bg-white p-5">
+              <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-muted">Actions</p>
 
-              {venue.status === "pending" && view !== "suspend" && (
-                <div className="space-y-2">
-                  <ActionButton
-                    className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              <div className="space-y-2">
+                {venue.status === "pending" && view !== "suspend" && (
+                  <>
+                    <ActionBtn
+                      className="flex w-full items-center justify-center rounded-xl bg-foreground py-3 text-sm font-semibold text-white transition hover:opacity-80"
+                      onClick={() => runAction(approveVenue)}
+                      pending={isPending}
+                    >
+                      Approve venue
+                    </ActionBtn>
+                    {view === "actions" && (
+                      <button
+                        className="flex w-full items-center justify-center rounded-xl border border-line py-3 text-sm font-medium text-foreground transition hover:bg-zinc-50"
+                        disabled={isPending}
+                        onClick={() => setView("query")}
+                        type="button"
+                      >
+                        {thread.length > 0 ? "Send follow-up" : "Request information"}
+                      </button>
+                    )}
+                    <button
+                      className="flex w-full items-center justify-center rounded-xl border border-line py-3 text-sm font-medium text-muted transition hover:bg-zinc-50 hover:text-foreground"
+                      disabled={isPending}
+                      onClick={() => setView("suspend")}
+                      type="button"
+                    >
+                      Reject application
+                    </button>
+                  </>
+                )}
+
+                {venue.status === "approved" && view !== "suspend" && (
+                  <button
+                    className="flex w-full items-center justify-center rounded-xl border border-line py-3 text-sm font-medium text-muted transition hover:bg-zinc-50 hover:text-foreground"
+                    disabled={isPending}
+                    onClick={() => setView("suspend")}
+                    type="button"
+                  >
+                    Suspend venue
+                  </button>
+                )}
+
+                {view === "suspend" && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted">
+                      This deactivates the venue immediately. Optionally provide a reason.
+                    </p>
+                    <input
+                      autoFocus
+                      className="w-full rounded-xl border border-line bg-zinc-50 px-4 py-2.5 text-sm text-foreground outline-none focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
+                      onChange={(e) => setSuspendReason(e.target.value)}
+                      placeholder="Reason (optional)"
+                      value={suspendReason}
+                    />
+                    <ActionBtn
+                      className="flex w-full items-center justify-center rounded-xl bg-foreground py-3 text-sm font-semibold text-white transition hover:opacity-80"
+                      onClick={() => { runAction(suspendVenue, { reason: suspendReason }); setView("actions"); }}
+                      pending={isPending}
+                    >
+                      Confirm
+                    </ActionBtn>
+                    <button
+                      className="w-full text-center text-xs text-muted hover:text-foreground"
+                      onClick={() => setView("actions")}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+
+                {(venue.status === "suspended" || venue.status === "rejected") && (
+                  <ActionBtn
+                    className="flex w-full items-center justify-center rounded-xl bg-foreground py-3 text-sm font-semibold text-white transition hover:opacity-80"
                     onClick={() => runAction(approveVenue)}
                     pending={isPending}
                   >
-                    Approve venue
-                  </ActionButton>
-                  {view === "actions" && (
-                    <button
-                      className="w-full rounded-lg border border-amber-200 bg-amber-50 py-2.5 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
-                      disabled={isPending}
-                      onClick={() => setView("query")}
-                      type="button"
-                    >
-                      {thread.length > 0 ? "Send follow-up query" : "Send query"}
-                    </button>
-                  )}
-                </div>
-              )}
+                    Reinstate venue
+                  </ActionBtn>
+                )}
+              </div>
 
-              {venue.status === "approved" && view !== "suspend" && (
-                <button
-                  className="w-full rounded-lg border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                  disabled={isPending}
-                  onClick={() => setView("suspend")}
-                  type="button"
-                >
-                  Suspend venue
-                </button>
-              )}
-
-              {view === "suspend" && (
-                <div className="space-y-2">
-                  <input
-                    autoFocus
-                    className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30"
-                    onChange={(e) => setSuspendReason(e.target.value)}
-                    placeholder="Reason (optional)"
-                    value={suspendReason}
-                  />
-                  <ActionButton
-                    className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
-                    onClick={() => { runAction(suspendVenue, { reason: suspendReason }); setView("actions"); }}
-                    pending={isPending}
-                  >
-                    Confirm suspend
-                  </ActionButton>
-                  <button
-                    className="w-full text-xs text-muted hover:text-foreground"
-                    onClick={() => setView("actions")}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-
-              {(venue.status === "suspended" || venue.status === "rejected") && (
-                <ActionButton
-                  className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                  onClick={() => runAction(approveVenue)}
-                  pending={isPending}
-                >
-                  Reinstate venue
-                </ActionButton>
-              )}
+              {/* Current status */}
+              <div className="mt-6 border-t border-line pt-4">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-muted">Current status</p>
+                <StatusBadge venue={venue} />
+              </div>
             </div>
           </div>
         </div>
@@ -349,112 +380,120 @@ export default function VenueTable({ venues }: { venues: AdminVenueReview[] }) {
   const countFor = (s: StatusFilter) =>
     s === "all" ? venues.length : venues.filter((v) => v.status === s).length;
 
+  const pendingCount = countFor("pending");
+
   return (
-    <Panel title="Venues">
-      {/* Filter tabs */}
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line pb-3">
-        {STATUS_TABS.map((tab) => {
-          const count = countFor(tab.value);
-          const active = filter === tab.value;
-          return (
-            <button
-              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                active
-                  ? "bg-foreground text-white"
-                  : "text-muted hover:bg-zinc-100 hover:text-foreground"
-              }`}
-              key={tab.value}
-              onClick={() => { setFilter(tab.value); setExpandedId(null); }}
-              type="button"
-            >
-              {tab.label}
-              {count > 0 && (
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                    active ? "bg-white/20 text-white" : "bg-zinc-100 text-muted"
-                  }`}
-                >
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+    <div className="rounded-xl border border-line bg-panel shadow-sm">
+      {/* Table header */}
+      <div className="flex flex-col gap-4 border-b border-line px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Venues</h2>
+          <p className="mt-0.5 text-xs text-muted">{venues.length} total · click any row to review</p>
+        </div>
+        {/* Filter tabs */}
+        <div className="flex gap-1 overflow-x-auto">
+          {STATUS_TABS.map((tab) => {
+            const count = countFor(tab.value);
+            const active = filter === tab.value;
+            const showAlert = tab.value === "pending" && pendingCount > 0 && !active;
+            return (
+              <button
+                className={`relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
+                  active
+                    ? "bg-foreground text-white"
+                    : "text-muted hover:bg-zinc-100 hover:text-foreground"
+                }`}
+                key={tab.value}
+                onClick={() => { setFilter(tab.value); setExpandedId(null); }}
+                type="button"
+              >
+                {showAlert && (
+                  <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-zinc-500" />
+                )}
+                {tab.label}
+                {count > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                      active ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-500"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-line bg-zinc-50 px-4 py-8 text-center text-sm text-muted">
-          No venues in this category.
+        <div className="flex flex-col items-center justify-center gap-2 px-4 py-16 text-center">
+          <svg className="h-8 w-8 text-zinc-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+            <path d="M3 21h18M4 21V8l8-5 8 5v13M9 21v-5h6v5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <p className="text-sm text-muted">No venues in this category</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-line">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                <th className="px-4 py-3">Venue</th>
-                <th className="hidden px-4 py-3 md:table-cell">Plan</th>
-                <th className="hidden px-4 py-3 lg:table-cell">Submitted</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {visible.map((venue) => {
-                const isExpanded = expandedId === venue.id;
-                const hasThread = Boolean(venue.queryMessage);
-                const isQueried = venue.status === "pending" && hasThread;
-
-                return (
-                  <>
-                    <tr
-                      className={`cursor-pointer transition ${isExpanded ? "bg-zinc-50" : "hover:bg-zinc-50"}`}
-                      key={venue.id}
-                      onClick={() => setExpandedId(isExpanded ? null : venue.id)}
-                    >
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-foreground">{venue.name}</p>
-                        <p className="mt-0.5 text-xs text-muted">
-                          {[venue.city, venue.contactEmail].filter(Boolean).join(" · ")}
-                        </p>
-                      </td>
-                      <td className="hidden px-4 py-3 text-muted md:table-cell">
-                        {formatPlan(venue.billingPlan)}
-                      </td>
-                      <td className="hidden px-4 py-3 text-muted lg:table-cell">
-                        {formatDate(venue.submittedAt)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-1">
-                          <StatusPill tone={STATUS_TONE[venue.status]}>
-                            {isQueried ? "Queried" : STATUS_LABEL[venue.status]}
-                          </StatusPill>
-                          {isQueried && (
-                            <span className="text-[10px] text-amber-600">Response pending</span>
-                          )}
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-line bg-zinc-50/50 text-left">
+              <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-widest text-muted">Venue</th>
+              <th className="hidden px-6 py-3.5 text-[11px] font-bold uppercase tracking-widest text-muted md:table-cell">Plan</th>
+              <th className="hidden px-6 py-3.5 text-[11px] font-bold uppercase tracking-widest text-muted lg:table-cell">Submitted</th>
+              <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-widest text-muted">Status</th>
+              <th className="px-6 py-3.5" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {visible.map((venue) => {
+              const isExpanded = expandedId === venue.id;
+              return (
+                <>
+                  <tr
+                    className={`cursor-pointer transition-colors ${isExpanded ? "bg-zinc-50" : "hover:bg-zinc-50/70"}`}
+                    key={venue.id}
+                    onClick={() => setExpandedId(isExpanded ? null : venue.id)}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-zinc-100 text-xs font-bold text-zinc-500">
+                          {venue.name.slice(0, 2).toUpperCase()}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-xs text-muted">
-                          {isExpanded ? "▲ Close" : "▼ Open"}
-                        </span>
-                      </td>
-                    </tr>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">{venue.name}</p>
+                          <p className="mt-0.5 truncate text-xs text-muted">
+                            {[venue.city, venue.contactEmail].filter(Boolean).join(" · ")}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="hidden px-6 py-4 text-sm text-muted md:table-cell">
+                      {formatPlan(venue.billingPlan)}
+                    </td>
+                    <td className="hidden px-6 py-4 text-sm text-muted lg:table-cell">
+                      {formatDate(venue.submittedAt)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge venue={venue} />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <ChevronDown open={isExpanded} />
+                    </td>
+                  </tr>
 
-                    {isExpanded && (
-                      <VenueDetailPanel
-                        key={`${venue.id}-detail`}
-                        onClose={() => setExpandedId(null)}
-                        venue={venue}
-                      />
-                    )}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  {isExpanded && (
+                    <VenueDetailPanel
+                      key={`${venue.id}-detail`}
+                      onClose={() => setExpandedId(null)}
+                      venue={venue}
+                    />
+                  )}
+                </>
+              );
+            })}
+          </tbody>
+        </table>
       )}
-    </Panel>
+    </div>
   );
 }
-

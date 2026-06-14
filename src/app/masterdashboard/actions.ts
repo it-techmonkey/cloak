@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { sendEmail, getSiteUrl } from "@/lib/email";
+import { VenueApprovedEmail } from "@/lib/emails/VenueApprovedEmail";
+import { VenueRejectedEmail } from "@/lib/emails/VenueRejectedEmail";
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -53,7 +56,7 @@ export async function approveVenue(formData: FormData) {
 
   const { data: venue } = await supabase
     .from("venues")
-    .select("billing_status, stripe_customer_id")
+    .select("billing_status, stripe_customer_id, name, contact_email")
     .eq("id", venueId)
     .maybeSingle();
 
@@ -90,6 +93,18 @@ export async function approveVenue(formData: FormData) {
     venueId,
   });
 
+  if (venue.contact_email) {
+    void sendEmail({
+      to: venue.contact_email,
+      subject: `${venue.name} is approved on Cloak`,
+      react: VenueApprovedEmail({
+        contactName: `${venue.name} Manager`,
+        loginUrl: `${getSiteUrl()}/venuedashboard`,
+        venueName: venue.name,
+      }),
+    });
+  }
+
   revalidatePath("/masterdashboard");
   finish("Venue approved and activated.");
 }
@@ -99,6 +114,12 @@ export async function queryVenue(formData: FormData) {
   const message = readField(formData, "message");
   const admin = await assertAdmin();
   const supabase = createAdminClient();
+
+  const { data: venue } = await supabase
+    .from("venues")
+    .select("name, contact_email")
+    .eq("id", venueId)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("venues")
@@ -119,6 +140,19 @@ export async function queryVenue(formData: FormData) {
     venueId,
   });
 
+  if (venue?.contact_email) {
+    void sendEmail({
+      to: venue.contact_email,
+      subject: `A question about your ${venue.name} application`,
+      react: VenueRejectedEmail({
+        contactName: `${venue.name} Manager`,
+        isQuery: true,
+        reason: message || "Please provide additional information.",
+        venueName: venue.name,
+      }),
+    });
+  }
+
   revalidatePath("/masterdashboard");
   finish("Query sent to venue.");
 }
@@ -128,6 +162,12 @@ export async function rejectVenue(formData: FormData) {
   const reason = readField(formData, "reason") || "Rejected by platform admin.";
   const admin = await assertAdmin();
   const supabase = createAdminClient();
+
+  const { data: venue } = await supabase
+    .from("venues")
+    .select("name, contact_email")
+    .eq("id", venueId)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("venues")
@@ -148,6 +188,19 @@ export async function rejectVenue(formData: FormData) {
     metadata: { reason },
     venueId,
   });
+
+  if (venue?.contact_email) {
+    void sendEmail({
+      to: venue.contact_email,
+      subject: `Update on your ${venue.name} application`,
+      react: VenueRejectedEmail({
+        contactName: `${venue.name} Manager`,
+        isQuery: false,
+        reason,
+        venueName: venue.name,
+      }),
+    });
+  }
 
   revalidatePath("/masterdashboard");
   finish("Venue registration rejected.");

@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { createPublicCode, createTicketToken } from "@/lib/tickets";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
+import { sendEmail, getSiteUrl } from "@/lib/email";
+import { GuestTicketEmail } from "@/lib/emails/GuestTicketEmail";
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -107,5 +109,29 @@ export async function createGuestTicket(formData: FormData) {
     fail("We could not create your ticket. Please try again.");
   }
 
-  redirect(`/ticket?token=${encodeURIComponent(ticketToken.token)}`);
+  const ticketUrl = `${getSiteUrl()}/ticket?token=${encodeURIComponent(ticketToken.token)}`;
+
+  // Fetch venue address for the email — non-blocking, best-effort.
+  const { data: venueRow } = await supabase
+    .from("venues")
+    .select("name, address, city")
+    .eq("id", venue.id)
+    .maybeSingle();
+
+  const venueAddress = [venueRow?.address, venueRow?.city].filter(Boolean).join(", ") || null;
+
+  void sendEmail({
+    to: email,
+    subject: `Your Cloak pass for ${venueRow?.name ?? "your venue"}`,
+    react: GuestTicketEmail({
+      expiresAt: expiresAt,
+      guestName: fullName,
+      publicCode,
+      ticketUrl,
+      venueAddress,
+      venueName: venueRow?.name ?? "your venue",
+    }),
+  });
+
+  redirect(ticketUrl);
 }

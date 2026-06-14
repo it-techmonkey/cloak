@@ -31,9 +31,11 @@ export default function PublicHeader() {
     <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link className="flex items-center gap-2.5" href="/">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-foreground text-xs font-bold text-white">
-            CL
-          </span>
+          <img
+            alt="Cloak"
+            className="h-8 w-8 rounded-lg object-cover"
+            src="/images/logo.png"
+          />
           <span className="text-sm font-semibold tracking-tight text-foreground">Cloak</span>
         </Link>
 

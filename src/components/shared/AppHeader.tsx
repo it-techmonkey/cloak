@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -77,9 +77,11 @@ export default function AppHeader({
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link className="flex shrink-0 items-center gap-2.5" href={logoHref}>
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-foreground text-xs font-bold text-white">
-            CL
-          </span>
+          <img
+            alt="Cloak"
+            className="h-8 w-8 rounded-lg object-cover"
+            src="/images/logo.png"
+          />
           <span className="text-sm font-semibold text-foreground">Cloak</span>
         </Link>
 

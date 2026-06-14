@@ -12,6 +12,8 @@ import {
 } from "@/lib/venue-signup-session";
 import { slugifyVenueName, type VenuePlanId, venuePlans } from "@/lib/venues";
 import { isValidEmail } from "@/lib/validation";
+import { sendEmail, getSiteUrl } from "@/lib/email";
+import { NewVenuePendingEmail } from "@/lib/emails/NewVenuePendingEmail";
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -261,6 +263,23 @@ export async function finishVenueSignup(formData: FormData) {
   }
 
   await clearDraftVenueSignup();
+
+  const adminEmail = process.env.PLATFORM_ADMIN_EMAIL;
+  if (adminEmail) {
+    void sendEmail({
+      to: adminEmail,
+      subject: `New venue pending review: ${draft.venueName}`,
+      react: NewVenuePendingEmail({
+        billingPlan: draft.billingPlan ?? "unknown",
+        capacity: draft.capacity,
+        city: draft.city,
+        contactEmail: draft.contactEmail,
+        contactName: `${draft.venueName} Manager`,
+        dashboardUrl: `${getSiteUrl()}/masterdashboard`,
+        venueName: draft.venueName,
+      }),
+    });
+  }
 
   // Sign the new manager in so they land on the dashboard
   const { createClient: createBrowserServer } = await import("@/lib/supabase/server");

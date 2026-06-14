@@ -12,6 +12,7 @@ import {
 import PageShell from "@/components/shared/PageShell";
 import Panel from "@/components/shared/Panel";
 import PhoneInput from "@/components/shared/PhoneInput";
+import VenueQrCard from "./VenueQrCard";
 import SaveButton from "@/components/shared/SaveButton";
 import StatusPill from "@/components/shared/StatusPill";
 import SubmitButton from "@/components/shared/SubmitButton";
@@ -251,6 +252,10 @@ export default function VenueSettingsPage({
               <p className="text-sm text-muted">Link unavailable — save venue details first.</p>
             )}
           </Panel>
+
+          {checkInUrl && venue && (
+            <VenueQrCard checkInUrl={checkInUrl} venueName={venue.name} />
+          )}
 
           <ExpiryToggleSection venue={venue} />
         </>

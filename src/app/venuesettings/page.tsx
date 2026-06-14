@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import AuthStatePage from "@/components/auth/AuthStatePage";
 import VenueSettingsPage from "@/components/venue/settings/VenueSettingsPage";
 import { requireVenueAccess } from "@/lib/auth/guards";
@@ -20,12 +19,10 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     );
   }
 
-  const [params, headerList] = await Promise.all([searchParams, headers()]);
+  const params = await searchParams;
   const data = await getVenueDashboardData({ context: guard });
 
-  const host = headerList.get("host") ?? "localhost:3000";
-  const protocol = host.startsWith("localhost") ? "http" : "https";
-  const origin = `${protocol}://${host}`;
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://cloakqr.com").replace(/\/$/, "");
   const checkInUrl = data.venue ? `${origin}/customer-signup?venue=${data.venue.id}` : null;
 
   return (
