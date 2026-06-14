@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
+import { isValidPhone } from "@/lib/validation";
 
 /**
  * Country dialling codes offered in the selector. UK is the default.
@@ -78,10 +79,14 @@ export default function PhoneInput({
   const initial = useMemo(() => splitPhone(defaultValue), [defaultValue]);
   const [dial, setDial] = useState(initial.dial);
   const [national, setNational] = useState(initial.national);
+  const [touched, setTouched] = useState(false);
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const errorId = `${inputId}-error`;
 
   const combined = combine(dial, national);
+  const hasInput = national.trim().length > 0;
+  const invalid = touched && (required || hasInput) && !isValidPhone(combined);
 
   function update(nextDial: string, nextNational: string) {
     setDial(nextDial);
@@ -90,34 +95,48 @@ export default function PhoneInput({
   }
 
   return (
-    <div className={`flex gap-2 ${className}`}>
-      {/* Hidden field carries the combined value for native form submissions. */}
-      <input name={name} type="hidden" value={combined} />
+    <div className={className}>
+      <div className="flex gap-2">
+        {/* Hidden field carries the combined value for native form submissions. */}
+        <input name={name} type="hidden" value={combined} />
 
-      <select
-        aria-label="Country code"
-        className="shrink-0 rounded-lg border border-line bg-white px-2 py-2.5 text-sm text-foreground outline-none transition focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8"
-        onChange={(e) => update(e.target.value, national)}
-        value={dial}
-      >
-        {COUNTRY_CODES.map((c) => (
-          <option key={c.code} value={c.dial}>
-            {c.dial} {c.code}
-          </option>
-        ))}
-      </select>
+        <select
+          aria-label="Country code"
+          className="shrink-0 rounded-lg border border-line bg-white px-2 py-2.5 text-sm text-foreground outline-none transition focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8"
+          onChange={(e) => update(e.target.value, national)}
+          value={dial}
+        >
+          {COUNTRY_CODES.map((c) => (
+            <option key={c.code} value={c.dial}>
+              {c.dial} {c.code}
+            </option>
+          ))}
+        </select>
 
-      <input
-        autoComplete="tel-national"
-        className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8"
-        id={inputId}
-        inputMode="tel"
-        onChange={(e) => update(dial, e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        type="tel"
-        value={national}
-      />
+        <input
+          aria-describedby={invalid ? errorId : undefined}
+          aria-invalid={invalid || undefined}
+          autoComplete="tel-national"
+          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:ring-2 ${
+            invalid
+              ? "border-red-300 focus:border-red-400 focus:ring-red-500/10"
+              : "border-line focus:border-foreground/40 focus:ring-foreground/8"
+          }`}
+          id={inputId}
+          inputMode="tel"
+          onBlur={() => setTouched(true)}
+          onChange={(e) => update(dial, e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          type="tel"
+          value={national}
+        />
+      </div>
+      {invalid ? (
+        <p className="mt-1.5 text-xs font-medium text-red-600" id={errorId}>
+          Please enter a valid mobile number.
+        </p>
+      ) : null}
     </div>
   );
 }

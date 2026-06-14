@@ -89,9 +89,22 @@ export default function CameraScanner({
 
       // iOS Safari requires the video to be muted+playsInline (set in JSX) and
       // play() must be called after srcObject is set. We wait for loadedmetadata
-      // before playing to avoid AbortError on iOS.
+      // before playing to avoid AbortError on iOS. Guard against the metadata
+      // having already loaded (fast cameras / cached permission), in which case
+      // the event would never fire again, and add a timeout so a missed event
+      // can never wedge the camera in "starting".
       await new Promise<void>((resolve) => {
-        video.onloadedmetadata = () => resolve();
+        if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+          resolve();
+          return;
+        }
+        const done = () => {
+          video.onloadedmetadata = null;
+          clearTimeout(timer);
+          resolve();
+        };
+        const timer = setTimeout(done, 3000);
+        video.onloadedmetadata = done;
       });
       await video.play();
 

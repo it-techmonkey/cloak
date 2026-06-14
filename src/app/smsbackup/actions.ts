@@ -13,6 +13,7 @@ import {
   performCheckout,
 } from "@/lib/scanner-operations";
 import { createPublicCode, createTicketToken } from "@/lib/tickets";
+import { isValidEmail, isValidPhone, phoneDigits } from "@/lib/validation";
 import type { ScannerState, ScannerTicket } from "@/app/venuescanner/types";
 import type { BackupState } from "./types";
 
@@ -24,11 +25,6 @@ const NO_CONTEXT: BackupState = {
   message: "Sign in with a venue manager or staff account assigned to this venue.",
   status: "error",
 };
-
-/** All digits of a phone number, with a leading 0 stripped (national trunk). */
-function phoneDigits(value: string): string {
-  return value.replace(/\D/g, "").replace(/^0+/, "");
-}
 
 /**
  * Tolerant phone match: two numbers match if one's digits end with the other's
@@ -156,6 +152,14 @@ async function handleCreateTicket(formData: FormData): Promise<BackupState> {
 
   if (!fullName || !phone) {
     return { message: "Enter the guest's name and phone number.", status: "error" };
+  }
+
+  if (!isValidPhone(phone)) {
+    return { message: "Please enter a valid phone number.", status: "error" };
+  }
+
+  if (emailInput && !isValidEmail(emailInput)) {
+    return { message: "Please enter a valid email address.", status: "error" };
   }
 
   // Resolve the venue: an explicit choice (validated against the staff's

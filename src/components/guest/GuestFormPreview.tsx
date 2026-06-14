@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createGuestTicket } from "@/app/customer-signup/actions";
 import SubmitButton from "@/components/shared/SubmitButton";
 import PhoneInput from "@/components/shared/PhoneInput";
+import EmailInput from "@/components/shared/EmailInput";
 import type { PublicVenueOption } from "@/lib/tickets";
 import type { PublicEventOption } from "@/lib/events";
 
@@ -133,14 +134,7 @@ export default function GuestFormPreview({
           <label className="text-sm font-semibold text-foreground" htmlFor="email">
             Email
           </label>
-          <input
-            className={inputClass}
-            id="email"
-            name="email"
-            placeholder="you@example.com"
-            required
-            type="email"
-          />
+          <EmailInput className={inputClass} id="email" name="email" required />
         </div>
 
         {/* Mobile */}

@@ -11,6 +11,7 @@ import {
   type VenueSignupDraft,
 } from "@/lib/venue-signup-session";
 import { slugifyVenueName, type VenuePlanId, venuePlans } from "@/lib/venues";
+import { isValidEmail } from "@/lib/validation";
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -38,7 +39,7 @@ function validateVenueDetails(draft: VenueSignupDraft) {
     fail("/venuesignup", "Please complete all required venue details.");
   }
 
-  if (!draft.contactEmail.includes("@") || !draft.contactEmail.includes(".")) {
+  if (!isValidEmail(draft.contactEmail)) {
     fail("/venuesignup", "Please enter a valid contact email address.");
   }
 

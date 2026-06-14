@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { createPublicCode, createTicketToken } from "@/lib/tickets";
+import { isValidEmail, isValidPhone } from "@/lib/validation";
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -31,8 +32,12 @@ export async function createGuestTicket(formData: FormData) {
     fail("Please complete all required details.");
   }
 
-  if (!email.includes("@") || !email.includes(".")) {
+  if (!isValidEmail(email)) {
     fail("Please enter a valid email address.");
+  }
+
+  if (!isValidPhone(mobile)) {
+    fail("Please enter a valid mobile number.");
   }
 
   const supabase = createAdminClient();

@@ -1,9 +1,10 @@
 import Link from "next/link";
+import PublicHeader from "@/components/shared/PublicHeader";
+import PublicFooter from "@/components/shared/PublicFooter";
 
-const heroImg = "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?auto=format&fit=crop&w=1800&q=85";
-const dashImg = "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80";
-const scanImg = "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=900&q=80";
-const crowdImg = "https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=900&q=80";
+const heroImg = "/images/venues-hero.png";
+const scanImg = "/images/venue-scan-detail.png";
+const crowdImg = "/images/crowd-live.png";
 
 const features = [
   {
@@ -92,26 +93,7 @@ export default function VenuesPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
 
-      {/* ── Slim header ────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link className="flex items-center gap-2.5" href="/">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-foreground text-xs font-bold text-white">CL</span>
-            <span className="text-sm font-semibold tracking-tight text-foreground">Cloak</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link className="hidden text-sm font-medium text-muted transition hover:text-foreground sm:block" href="/">
-              ← Back to home
-            </Link>
-            <Link
-              className="rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-white transition hover:opacity-85"
-              href="/venuesignup"
-            >
-              Register venue
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main>
 
@@ -381,18 +363,7 @@ export default function VenuesPage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-line bg-white">
-        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <Link className="flex items-center gap-2.5" href="/">
-              <span className="grid h-7 w-7 place-items-center rounded-lg bg-foreground text-xs font-bold text-white">CL</span>
-              <span className="text-sm font-semibold text-foreground">Cloak</span>
-            </Link>
-            <p className="text-xs text-muted">© {new Date().getFullYear()} Cloak by TechMonkeys.</p>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

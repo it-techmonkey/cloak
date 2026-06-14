@@ -1,11 +1,10 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import GuestFormPreview from "./GuestFormPreview";
 import QrValidityRules from "./QrValidityRules";
 import type { PublicVenueOption } from "@/lib/tickets";
 import type { PublicEventOption } from "@/lib/events";
 
-const venueImage =
-  "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?auto=format&fit=crop&w=1200&q=80";
+const venueImage = "/images/venue-checkin.png";
 
 export default function GuestCheckInPage({
   error,

@@ -1,5 +1,5 @@
-const qrImage = "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&w=900&q=80";
-const counterImage = "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80";
+const qrImage = "/images/qr-pass-hand.png";
+const counterImage = "/images/cloakroom-scan.png";
 
 const steps = [
   {

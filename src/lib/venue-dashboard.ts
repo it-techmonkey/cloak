@@ -99,10 +99,12 @@ export type VenueTicketDetail = VenueTicketListItem & {
 
 export type TicketFilter = "all" | "pending" | "active" | "collected" | "expired";
 
+// Note: "expired" is intentionally absent here. No ticket row ever holds the
+// "expired" status — expiry is virtual (a pending_activation ticket whose
+// expires_at has passed). It needs a compound filter, applied separately below.
 const FILTER_TO_STATUS: Partial<Record<TicketFilter, TicketStatus[]>> = {
   active: ["active", "partially_collected"],
   collected: ["collected"],
-  expired: ["expired"],
   pending: ["pending_activation"],
 };
 
@@ -321,8 +323,16 @@ export async function getVenueDashboardData({
 
   if (venueIds) ticketQuery = ticketQuery.in("venue_id", venueIds);
 
-  const selectedStatuses = FILTER_TO_STATUS[activeFilter];
-  if (selectedStatuses) ticketQuery = ticketQuery.in("status", selectedStatuses);
+  if (activeFilter === "expired") {
+    // "Expired" means forgotten: a pending ticket that was never activated
+    // before its expiry passed. Mirror the forgottenCount logic below.
+    ticketQuery = ticketQuery
+      .eq("status", "pending_activation")
+      .lt("expires_at", new Date().toISOString());
+  } else {
+    const selectedStatuses = FILTER_TO_STATUS[activeFilter];
+    if (selectedStatuses) ticketQuery = ticketQuery.in("status", selectedStatuses);
+  }
 
   if (normalizedSearch) {
     const pattern = searchPattern(normalizedSearch);

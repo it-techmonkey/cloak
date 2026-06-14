@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-const heroImage =
-  "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=2000&q=85";
+const heroImage = "/images/home-hero.png";
 
 export default function Hero() {
   return (
@@ -24,7 +23,7 @@ export default function Hero() {
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span className="text-xs font-semibold tracking-wide text-white/80">
-                Digital cloakroom — no app needed
+                Digital cloakroom
               </span>
             </div>
 
@@ -34,7 +33,7 @@ export default function Hero() {
             </h1>
 
             <p className="mt-6 max-w-md text-base leading-7 text-white/70">
-              Cloak turns your phone into a digital cloakroom ticket — venue-bound, staff-verified, and gone when you're done.
+              Cloak turns your phone into a digital cloakroom ticket — venue-bound, staff-verified, and gone when you&apos;re done.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">

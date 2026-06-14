@@ -5,6 +5,7 @@ import { handleBackupAction } from "@/app/smsbackup/actions";
 import { initialBackupState } from "@/app/smsbackup/types";
 import PhoneInput from "@/components/shared/PhoneInput";
 import Panel from "@/components/shared/Panel";
+import { isValidEmail, isValidPhone } from "@/lib/validation";
 import { ActivationForm, CheckoutForm, GuestCard } from "@/components/venue/scanner/TicketActionForms";
 import type { ScannerTicket } from "@/app/venuescanner/types";
 
@@ -21,6 +22,7 @@ export default function BackupConsole() {
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -34,6 +36,15 @@ export default function BackupConsole() {
 
   function submitCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (!isValidPhone(newPhone)) {
+      setCreateError("Please enter a valid phone number.");
+      return;
+    }
+    if (newEmail.trim() && !isValidEmail(newEmail)) {
+      setCreateError("Please enter a valid email address.");
+      return;
+    }
+    setCreateError(null);
     const fd = new FormData();
     fd.set("_action", "create");
     fd.set("fullName", newName);
@@ -124,6 +135,9 @@ export default function BackupConsole() {
                   value={newEmail}
                 />
               </div>
+              {createError ? (
+                <p className="text-xs font-medium text-red-600">{createError}</p>
+              ) : null}
               <div className="flex gap-2">
                 <button
                   className="rounded-xl bg-foreground px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"

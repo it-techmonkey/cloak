@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireVenueAccess } from "@/lib/auth/guards";
 import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isValidEmail } from "@/lib/validation";
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -49,7 +50,7 @@ export async function createVenueStaffAccount(formData: FormData) {
   if (!venueId) fail("No managed venue was found for this account.");
 
   if (!fullName || !email || !password) fail("Please complete all staff account details.");
-  if (!email.includes("@") || !email.includes(".")) fail("Please enter a valid staff email address.");
+  if (!isValidEmail(email)) fail("Please enter a valid staff email address.");
   if (password.length < 8) fail("Staff password must be at least 8 characters.");
 
   const supabase = createAdminClient();
