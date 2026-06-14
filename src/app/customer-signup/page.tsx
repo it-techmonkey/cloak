@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{
   error?: string | string[];
+  venue?: string | string[];
 }>;
 
 function getParam(value: string | string[] | undefined) {
@@ -18,6 +19,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
 
   return (
     <GuestCheckInPage
+      defaultVenueId={getParam(params.venue)}
       error={getParam(params.error)}
       eventsByVenue={eventsByVenue}
       venues={venues}

@@ -11,7 +11,10 @@ function getClient(): Resend | null {
 }
 
 export function getSiteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? "https://cloakqr.com").replace(/\/$/, "");
+  let url = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cloakqr.com";
+  url = url.replace(/\/$/, "");
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  return url;
 }
 
 /**

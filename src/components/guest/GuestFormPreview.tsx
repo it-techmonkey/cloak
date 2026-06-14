@@ -15,16 +15,21 @@ const selectClass =
   "w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-foreground outline-none transition focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8 appearance-none cursor-pointer";
 
 export default function GuestFormPreview({
+  defaultVenueId,
   error,
   eventsByVenue,
   venues,
 }: {
+  defaultVenueId?: string;
   error?: string;
   eventsByVenue: Record<string, PublicEventOption[]>;
   venues: PublicVenueOption[];
 }) {
   const hasVenues = venues.length > 0;
-  const [selectedId, setSelectedId] = useState<string>(venues[0]?.id ?? "");
+  const initialId = (defaultVenueId && venues.some((v) => v.id === defaultVenueId))
+    ? defaultVenueId
+    : (venues[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState<string>(initialId);
   const selectedVenue = venues.find((v) => v.id === selectedId);
   const venueEvents = eventsByVenue[selectedId] ?? [];
 
