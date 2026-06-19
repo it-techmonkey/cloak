@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   title: "Cloak | Digital Cloakroom",
   description: "Venue-approved digital cloakroom tickets, QR scanning, and operations.",
   icons: {
-    icon: "/images/logo.png",
-    shortcut: "/images/logo.png",
-    apple: "/images/logo.png",
+    icon: "/images/cloak-logo.png",
+    shortcut: "/images/cloak-logo.png",
+    apple: "/images/cloak-logo.png",
   },
 };
 

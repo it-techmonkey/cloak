@@ -23,43 +23,43 @@ export default function Hero() {
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span className="text-xs font-semibold tracking-wide text-white/80">
-                Digital cloakroom
+                For venues &amp; their guests
               </span>
             </div>
 
             <h1 className="mt-6 text-5xl font-bold leading-[1.08] tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Leave your&nbsp;stuff.<br />
-              <span className="text-white/60">Not your&nbsp;worry.</span>
+              Ditch the paper.<br />
+              <span className="text-white/60">Run a smarter&nbsp;cloakroom.</span>
             </h1>
 
             <p className="mt-6 max-w-md text-base leading-7 text-white/70">
-              Cloak turns your phone into a digital cloakroom ticket — venue-bound, staff-verified, and gone when you&apos;re done.
+              Cloak replaces paper tickets with digital QR passes — linked to your venue, logged at every step, and zero hardware required.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-zinc-900 shadow-lg transition hover:bg-zinc-100 active:scale-95"
-                href="/customer-signup"
+                href="/venuesignup"
               >
-                Get your free pass
+                Register your venue — free
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                   <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </Link>
               <Link
                 className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                href="#how-it-works"
+                href="/register-interest"
               >
-                See how it works
+                Talk to us first
               </Link>
             </div>
 
             {/* Inline trust badges */}
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-2">
               {[
-                "No account required",
-                "Works on any phone",
-                "QR + text fallback",
+                "No hardware needed",
+                "Live in under a day",
+                "Zero disputes logged",
               ].map((t) => (
                 <div className="flex items-center gap-1.5 text-xs text-white/55" key={t}>
                   <svg className="h-3.5 w-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
@@ -83,13 +83,13 @@ export default function Hero() {
       <div className="border-b border-line bg-white">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-6 px-4 py-5 sm:px-6 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-            Trusted at venues across the UK
+            Trusted by venues across the UK
           </p>
           <div className="flex flex-wrap items-center gap-8">
             {[
-              { stat: "30 sec", label: "Avg. drop-off" },
-              { stat: "Zero disputes", label: "With digital tracking" },
-              { stat: "100% paper-free", label: "End-to-end flow" },
+              { stat: "30 sec", label: "Guest check-in time" },
+              { stat: "Zero disputes", label: "Across all venues" },
+              { stat: "Same day", label: "Setup & go live" },
             ].map((s) => (
               <div className="flex items-baseline gap-2" key={s.stat}>
                 <span className="text-sm font-bold text-foreground">{s.stat}</span>

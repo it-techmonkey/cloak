@@ -34,7 +34,7 @@ export default function PublicHeader() {
           <img
             alt="Cloak"
             className="h-8 w-8 rounded-lg object-cover"
-            src="/images/logo.png"
+            src="/images/cloak-logo.png"
           />
           <span className="text-sm font-semibold tracking-tight text-foreground">Cloak</span>
         </Link>
@@ -66,6 +66,12 @@ export default function PublicHeader() {
 
         <div className="flex items-center gap-2.5">
           <AuthButton />
+          <Link
+            className="hidden rounded-lg border border-line px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-zinc-50 sm:block"
+            href="/venuesignup"
+          >
+            List your venue
+          </Link>
           <Link
             className="hidden rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-white transition hover:opacity-85 sm:block"
             href="/customer-signup"
@@ -113,7 +119,14 @@ export default function PublicHeader() {
                 </Link>
               );
             })}
-            <div className="mt-2 border-t border-line pt-3">
+            <div className="mt-2 flex flex-col gap-2 border-t border-line pt-3">
+              <Link
+                className="block rounded-lg border border-line px-3 py-3 text-center text-sm font-semibold text-foreground"
+                href="/venuesignup"
+                onClick={() => setMobileOpen(false)}
+              >
+                List your venue
+              </Link>
               <Link
                 className="block rounded-lg bg-foreground px-3 py-3 text-center text-sm font-semibold text-white"
                 href="/customer-signup"

@@ -13,11 +13,11 @@ export default function PublicFooter() {
           {/* Brand */}
           <div className="sm:col-span-2 lg:col-span-1">
             <Link className="flex items-center gap-2.5" href="/">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-xs font-bold text-zinc-950">CL</span>
+              <img alt="Cloak" className="h-8 w-8 rounded-lg object-cover" src="/images/cloak-logofooter.png" />
               <span className="text-sm font-semibold text-white">Cloak</span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-6 text-white/45">
-              Digital cloakroom management for venues and their guests. Paper-free from check-in to collection.
+              The digital cloakroom platform built for venues. Go paper-free, cut disputes, and run a smoother counter — from day one.
             </p>
           </div>
 
