@@ -33,7 +33,7 @@ function CtaBand() {
       }}
     >
       <div className="absolute inset-0 bg-zinc-950/88" />
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col items-center gap-8 px-4 py-24 text-center sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col items-center gap-8 px-4 py-16 text-center sm:py-24 sm:px-6 lg:px-8">
         <div className="max-w-xl">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-white/70">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -48,7 +48,7 @@ function CtaBand() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <Link
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-semibold text-zinc-900 shadow-lg transition hover:bg-zinc-100 active:scale-95"
             href="/venuesignup"

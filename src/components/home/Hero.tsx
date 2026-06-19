@@ -27,18 +27,18 @@ export default function Hero() {
               </span>
             </div>
 
-            <h1 className="mt-6 text-5xl font-bold leading-[1.08] tracking-tight text-white sm:text-6xl lg:text-7xl">
+            <h1 className="mt-6 text-4xl font-bold leading-[1.08] tracking-tight text-white sm:text-6xl lg:text-7xl">
               Ditch the paper.<br />
               <span className="text-white/60">Run a smarter&nbsp;cloakroom.</span>
             </h1>
 
-            <p className="mt-6 max-w-md text-base leading-7 text-white/70">
+            <p className="mt-5 max-w-md text-sm leading-7 text-white/70 sm:text-base">
               Cloak replaces paper tickets with digital QR passes — linked to your venue, logged at every step, and zero hardware required.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-zinc-900 shadow-lg transition hover:bg-zinc-100 active:scale-95"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-zinc-900 shadow-lg transition hover:bg-zinc-100 active:scale-95"
                 href="/venuesignup"
               >
                 Register your venue — free
@@ -47,7 +47,7 @@ export default function Hero() {
                 </svg>
               </Link>
               <Link
-                className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 href="/register-interest"
               >
                 Talk to us first
@@ -55,14 +55,14 @@ export default function Hero() {
             </div>
 
             {/* Inline trust badges */}
-            <div className="mt-10 flex flex-wrap gap-x-6 gap-y-2">
+            <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2">
               {[
                 "No hardware needed",
                 "Live in under a day",
                 "Zero disputes logged",
               ].map((t) => (
                 <div className="flex items-center gap-1.5 text-xs text-white/55" key={t}>
-                  <svg className="h-3.5 w-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
                     <path clipRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fillRule="evenodd" />
                   </svg>
                   {t}
@@ -81,21 +81,26 @@ export default function Hero() {
 
       {/* Social-proof bar */}
       <div className="border-b border-line bg-white">
-        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-6 px-4 py-5 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-zinc-400 sm:hidden">
             Trusted by venues across the UK
           </p>
-          <div className="flex flex-wrap items-center gap-8">
-            {[
-              { stat: "30 sec", label: "Guest check-in time" },
-              { stat: "Zero disputes", label: "Across all venues" },
-              { stat: "Same day", label: "Setup & go live" },
-            ].map((s) => (
-              <div className="flex items-baseline gap-2" key={s.stat}>
-                <span className="text-sm font-bold text-foreground">{s.stat}</span>
-                <span className="text-xs text-muted">{s.label}</span>
-              </div>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="hidden text-xs font-semibold uppercase tracking-widest text-zinc-400 sm:block">
+              Trusted by venues across the UK
+            </p>
+            <div className="flex w-full flex-wrap items-center justify-between gap-4 sm:w-auto sm:gap-8">
+              {[
+                { stat: "30 sec", label: "Guest check-in time" },
+                { stat: "Zero disputes", label: "Across all venues" },
+                { stat: "Same day", label: "Setup & go live" },
+              ].map((s) => (
+                <div className="flex items-baseline gap-1.5" key={s.stat}>
+                  <span className="text-sm font-bold text-foreground">{s.stat}</span>
+                  <span className="text-xs text-muted">{s.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

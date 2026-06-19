@@ -100,13 +100,13 @@ export default function WorkflowHighlights() {
     <div className="bg-background">
 
       {/* ── How it works ──────────────────────────────────────────────────────── */}
-      <section id="how-it-works" className="mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <section id="how-it-works" className="mx-auto w-full max-w-7xl px-4 py-14 sm:py-20 sm:px-6 lg:px-8">
         <div className="flex flex-col items-start gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-lg">
             <span className="inline-block rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-muted">
               For guests
             </span>
-            <h2 className="mt-4 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
               Drop-off to pick-up.<br />
               <span className="text-muted">Four steps.</span>
             </h2>
@@ -116,22 +116,22 @@ export default function WorkflowHighlights() {
           </p>
         </div>
 
-        <div className="mt-14 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+        <div className="mt-10 grid gap-6 lg:mt-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
           {/* Step list */}
           <div className="grid gap-0 divide-y divide-line">
             {steps.map((step) => (
-              <div className="flex gap-6 py-6 first:pt-0 last:pb-0" key={step.num}>
+              <div className="flex gap-5 py-5 first:pt-0 last:pb-0 sm:gap-6 sm:py-6" key={step.num}>
                 <span className="mt-0.5 shrink-0 font-mono text-sm font-bold text-zinc-300">{step.num}</span>
                 <div>
-                  <p className="text-base font-semibold text-foreground">{step.title}</p>
-                  <p className="mt-1.5 text-sm leading-6 text-muted">{step.description}</p>
+                  <p className="text-sm font-semibold text-foreground sm:text-base">{step.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted">{step.description}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Visual: phone mockup with QR pass */}
-          <div className="relative overflow-hidden rounded-2xl lg:sticky lg:top-24">
+          {/* Visual: phone mockup with QR pass — hidden on mobile to keep page clean */}
+          <div className="relative hidden overflow-hidden rounded-2xl lg:block lg:sticky lg:top-24">
             <img
               alt="Guest checking in using a QR pass on their phone"
               className="h-80 w-full object-cover lg:h-[420px]"
@@ -151,16 +151,29 @@ export default function WorkflowHighlights() {
             </div>
           </div>
         </div>
+
+        {/* Guest CTA */}
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Link
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-foreground px-6 py-3.5 text-sm font-semibold text-white transition hover:opacity-85 active:scale-95"
+            href="/customer-signup"
+          >
+            Get your pass — it&apos;s free
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
+        </div>
       </section>
 
       {/* ── Trust section ──────────────────────────────────────────────────────── */}
       <section className="border-y border-line bg-white">
-        <div className="mx-auto grid w-full max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-20 lg:px-8">
-          {/* Image */}
+        <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center lg:gap-20 lg:px-8">
+          {/* Image — smaller on mobile */}
           <div className="relative overflow-hidden rounded-2xl">
             <img
               alt="Cloakroom counter staff scanning a ticket"
-              className="h-72 w-full object-cover sm:h-96 lg:h-[480px]"
+              className="h-56 w-full object-cover sm:h-96 lg:h-[480px]"
               src={counterImage}
             />
             {/* Floating stat card */}
@@ -175,7 +188,7 @@ export default function WorkflowHighlights() {
             <span className="inline-block rounded-full border border-line bg-background px-3 py-1 text-xs font-semibold uppercase tracking-widest text-muted">
               Built for busy counters
             </span>
-            <h2 className="mt-4 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
               Fewer disputes.<br />
               <span className="text-muted">No lost tickets.</span>
             </h2>
@@ -183,7 +196,7 @@ export default function WorkflowHighlights() {
               Every design decision in Cloak starts with one question: what makes a cloakroom counter run smoothly under real pressure?
             </p>
 
-            <div className="mt-8 grid gap-5">
+            <div className="mt-7 grid gap-4 sm:mt-8 sm:gap-5">
               {trustItems.map((item) => (
                 <div className="flex gap-4" key={item.heading}>
                   <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-foreground">
@@ -201,13 +214,13 @@ export default function WorkflowHighlights() {
       </section>
 
       {/* ── For venues section ─────────────────────────────────────────────────── */}
-      <section id="for-venues" className="mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <section id="for-venues" className="mx-auto w-full max-w-7xl px-4 py-14 sm:py-20 sm:px-6 lg:px-8">
         <div className="flex flex-col items-start gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-lg">
             <span className="inline-block rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-muted">
               For venues
             </span>
-            <h2 className="mt-4 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
               Your counter.<br />
               <span className="text-muted">Upgraded in a day.</span>
             </h2>
@@ -217,26 +230,26 @@ export default function WorkflowHighlights() {
           </p>
         </div>
 
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:mt-14 sm:gap-6 lg:grid-cols-4">
           {venueFeatures.map((feature) => (
             <div
-              className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-6"
+              className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 sm:gap-4 sm:p-6"
               key={feature.heading}
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-foreground">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-foreground sm:h-10 sm:w-10">
                 {feature.icon}
               </span>
               <div>
-                <p className="text-sm font-semibold text-foreground">{feature.heading}</p>
-                <p className="mt-1.5 text-sm leading-6 text-muted">{feature.body}</p>
+                <p className="text-xs font-semibold text-foreground sm:text-sm">{feature.heading}</p>
+                <p className="mt-1 text-xs leading-5 text-muted sm:text-sm sm:leading-6">{feature.body}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-10 flex flex-wrap gap-3">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
-            className="inline-flex items-center gap-2 rounded-xl bg-foreground px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-85 active:scale-95"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-foreground px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-85 active:scale-95"
             href="/venuesignup"
           >
             Register your venue — free
@@ -245,7 +258,7 @@ export default function WorkflowHighlights() {
             </svg>
           </Link>
           <Link
-            className="inline-flex items-center gap-2 rounded-xl border border-line px-6 py-3.5 text-sm font-semibold text-foreground transition hover:bg-zinc-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line px-6 py-3.5 text-sm font-semibold text-foreground transition hover:bg-zinc-50"
             href="/register-interest"
           >
             Talk to us first
