@@ -63,15 +63,17 @@ export default function GuestFormPreview({
                 <option value="">No approved venues available</option>
               )}
             </select>
-            <svg
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            {!venueIsLocked && (
+              <svg
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </div>
           {selectedVenue?.address && (
             <p className="flex items-center gap-1.5 text-xs text-muted">
@@ -80,14 +82,6 @@ export default function GuestFormPreview({
                 <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               {selectedVenue.address}
-            </p>
-          )}
-          {venueIsLocked && (
-            <p className="flex items-center gap-1.5 text-xs text-muted">
-              <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Venue set by your check-in link
             </p>
           )}
         </div>
