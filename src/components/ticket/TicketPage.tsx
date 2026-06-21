@@ -113,7 +113,7 @@ export default function TicketPage({
           event: "UPDATE",
           schema: "public",
           table: "tickets",
-          filter: `public_code=eq.${initial.ticketId}`,
+          filter: `id=eq.${initial.ticketId}`,
         },
         (payload) => {
           const row = payload.new as Record<string, unknown>;

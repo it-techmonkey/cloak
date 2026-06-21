@@ -80,7 +80,7 @@ export default function AppHeader({
           <img
             alt="Cloak"
             className="h-8 w-8 rounded-lg object-cover"
-            src="/images/logo.png"
+            src="/images/cloak-logo.png"
           />
           <span className="text-sm font-semibold text-foreground">Cloak</span>
         </Link>
