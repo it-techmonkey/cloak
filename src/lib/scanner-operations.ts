@@ -15,6 +15,10 @@ import {
   writeAcceptedScan,
   writeRejectedScan,
 } from "@/lib/scanner-core";
+import {
+  sendWhatsAppItemsCollected,
+  sendWhatsAppItemsStored,
+} from "@/lib/whatsapp";
 
 type TicketRow = Database["public"]["Tables"]["tickets"]["Row"];
 
@@ -201,6 +205,15 @@ export async function performActivation(
 
   const venueName = await getVenueName(context.supabase, ticket.venue_id);
   const freshItems = await loadTicketItems(context.supabase, ticket.id);
+
+  void sendWhatsAppItemsStored({
+    phone: updatedTicket.guest_phone,
+    guestName: updatedTicket.guest_name,
+    itemCount: totalCount,
+    slotNumber,
+    venueName,
+  });
+
   return {
     message: `Ticket activated. Cloak number ${slotNumber} assigned.`,
     status: "success",
@@ -344,6 +357,13 @@ export async function performCheckout(
   const venueName = await getVenueName(context.supabase, ticket.venue_id);
   const freshItems = await loadTicketItems(context.supabase, ticket.id);
   const returnedCount = targetIds.length;
+
+  void sendWhatsAppItemsCollected({
+    phone: ticket.guest_phone,
+    guestName: ticket.guest_name,
+    collectedCount: returnedCount,
+    venueName,
+  });
 
   return {
     message: fullyCollected

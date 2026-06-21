@@ -6,6 +6,7 @@ import { createPublicCode, createTicketToken } from "@/lib/tickets";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
 import { sendEmail, getSiteUrl } from "@/lib/email";
 import { GuestTicketEmail } from "@/lib/emails/GuestTicketEmail";
+import { sendWhatsAppPassIssued } from "@/lib/whatsapp";
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -120,18 +121,28 @@ export async function createGuestTicket(formData: FormData) {
 
   const venueAddress = [venueRow?.address, venueRow?.city].filter(Boolean).join(", ") || null;
 
-  await sendEmail({
-    to: email,
-    subject: `Your Cloak pass for ${venueRow?.name ?? "your venue"}`,
-    react: GuestTicketEmail({
-      expiresAt: expiresAt,
-      guestName: fullName,
-      publicCode,
-      ticketUrl,
-      venueAddress,
-      venueName: venueRow?.name ?? "your venue",
+  const resolvedVenueName = venueRow?.name ?? "your venue";
+
+  await Promise.all([
+    sendEmail({
+      to: email,
+      subject: `Your Cloak pass for ${resolvedVenueName}`,
+      react: GuestTicketEmail({
+        expiresAt: expiresAt,
+        guestName: fullName,
+        publicCode,
+        ticketUrl,
+        venueAddress,
+        venueName: resolvedVenueName,
+      }),
     }),
-  });
+    sendWhatsAppPassIssued({
+      phone: mobile,
+      guestName: fullName,
+      venueName: resolvedVenueName,
+      publicCode,
+    }),
+  ]);
 
   redirect(ticketUrl);
 }
