@@ -15,23 +15,21 @@ function toWhatsAppNumber(phone: string): string {
   return phone.replace(/^\+/, "");
 }
 
-// In test mode Meta only allows the built-in hello_world template.
-// Set WHATSAPP_TEST_MODE=true in .env.local while using the Meta test number.
-// Remove or set to false once your app is Live and templates are approved.
-const TEST_MODE = process.env.WHATSAPP_TEST_MODE === "true";
-
 async function sendTemplate(
   to: string,
   templateName: string,
   components: object[],
 ): Promise<void> {
+  // In test mode Meta only allows the built-in hello_world template.
+  // Set WHATSAPP_TEST_MODE=true in .env.local while using the Meta test number.
+  const testMode = process.env.WHATSAPP_TEST_MODE === "true";
   const config = getConfig();
   if (!config) return;
 
-  const resolvedName = TEST_MODE ? "hello_world" : templateName;
-  const resolvedComponents = TEST_MODE ? [] : components;
+  const resolvedName = testMode ? "hello_world" : templateName;
+  const resolvedComponents = testMode ? [] : components;
   // hello_world uses en_US; production templates use en_GB.
-  const resolvedLanguage = TEST_MODE ? "en_US" : "en_GB";
+  const resolvedLanguage = testMode ? "en_US" : "en_GB";
 
   try {
     const res = await fetch(`${BASE_URL}/${config.phoneNumberId}/messages`, {
@@ -77,7 +75,7 @@ export async function sendWhatsAppPassIssued({
   venueName: string;
   publicCode: string;
 }): Promise<void> {
-  await sendTemplate("cloak_pass_issued", phone, [
+  await sendTemplate(phone, "cloak_pass_issued", [
     {
       type: "body",
       parameters: [
@@ -107,7 +105,7 @@ export async function sendWhatsAppItemsStored({
   slotNumber: string;
   venueName: string;
 }): Promise<void> {
-  await sendTemplate("cloak_items_stored", phone, [
+  await sendTemplate(phone, "cloak_items_stored", [
     {
       type: "body",
       parameters: [
@@ -136,7 +134,7 @@ export async function sendWhatsAppItemsCollected({
   collectedCount: number;
   venueName: string;
 }): Promise<void> {
-  await sendTemplate("cloak_items_collected", phone, [
+  await sendTemplate(phone, "cloak_items_collected", [
     {
       type: "body",
       parameters: [
