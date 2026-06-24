@@ -5,27 +5,21 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import AuthButton from "@/components/auth/AuthButton";
 
-/**
- * The standard marketing-site header (logo, nav, auth + primary CTA), shared by
- * the home page and the venues page. Defined once and rendered in both the
- * desktop bar and the mobile sheet so the two never drift apart.
- *
- * `match` decides the active state: a "/" prefix highlights when the current
- * route starts with it (route links); a "#" target highlights only on the home
- * page (in-page anchors).
- */
 const NAV_LINKS: Array<{ label: string; href: string; match: string }> = [
-  { label: "How it works", href: "/#how-it-works", match: "#" },
-  { label: "For venues", href: "/venues", match: "/venues" },
-  { label: "Contact", href: "/register-interest", match: "/register-interest" },
+  { label: "For Venues", href: "/", match: "home" },
+  { label: "For Customers", href: "/for-customers", match: "/for-customers" },
+  { label: "Book a Demo", href: "/book-a-demo", match: "/book-a-demo" },
+  { label: "Contact Us", href: "/contact-us", match: "/contact-us" },
 ];
 
 export default function PublicHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  const isActive = (match: string) =>
-    match === "#" ? pathname === "/" : pathname.startsWith(match);
+  const isActive = (match: string) => {
+    if (match === "home") return pathname === "/";
+    return pathname.startsWith(match);
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-md">
@@ -67,16 +61,10 @@ export default function PublicHeader() {
         <div className="flex items-center gap-2.5">
           <AuthButton />
           <Link
-            className="hidden rounded-lg border border-line px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-zinc-50 sm:block"
-            href="/venuesignup"
-          >
-            List your venue
-          </Link>
-          <Link
             className="hidden rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-white transition hover:opacity-85 sm:block"
-            href="/customer-signup"
+            href={pathname.startsWith("/for-customers") ? "/customer-signup" : "/venuesignup"}
           >
-            Get your pass
+            Sign up
           </Link>
           <button
             aria-label="Toggle menu"
@@ -121,18 +109,11 @@ export default function PublicHeader() {
             })}
             <div className="mt-2 flex flex-col gap-2 border-t border-line pt-3">
               <Link
-                className="block rounded-lg border border-line px-3 py-3 text-center text-sm font-semibold text-foreground"
-                href="/venuesignup"
-                onClick={() => setMobileOpen(false)}
-              >
-                List your venue
-              </Link>
-              <Link
                 className="block rounded-lg bg-foreground px-3 py-3 text-center text-sm font-semibold text-white"
-                href="/customer-signup"
+                href={pathname.startsWith("/for-customers") ? "/customer-signup" : "/venuesignup"}
                 onClick={() => setMobileOpen(false)}
               >
-                Get your pass
+                Sign up
               </Link>
             </div>
           </nav>

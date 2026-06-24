@@ -7,11 +7,11 @@ import {
   clearDraftVenueSignup,
   getDraftVenueSignup,
   setDraftVenueSignup,
-  setSubmittedVenueId,
+  type VenueEntry,
   type VenueSignupDraft,
 } from "@/lib/venue-signup-session";
 import { slugifyVenueName, type VenuePlanId, venuePlans } from "@/lib/venues";
-import { isValidEmail } from "@/lib/validation";
+import { isValidEmail, isValidPhone } from "@/lib/validation";
 import { sendEmail, getSiteUrl } from "@/lib/email";
 import { NewVenuePendingEmail } from "@/lib/emails/NewVenuePendingEmail";
 
@@ -27,125 +27,174 @@ function isPlanId(value: string): value is VenuePlanId {
   return venuePlans.some((plan) => plan.id === value);
 }
 
-function validateVenueDetails(draft: VenueSignupDraft) {
-  if (
-    !draft.venueName ||
-    !draft.addressLine1 ||
-    !draft.city ||
-    !draft.country ||
-    !draft.postalCode ||
-    !draft.contactEmail ||
-    !draft.contactPhone ||
-    !draft.capacity
-  ) {
-    fail("/venuesignup", "Please complete all required venue details.");
-  }
-
-  if (!isValidEmail(draft.contactEmail)) {
-    fail("/venuesignup", "Please enter a valid contact email address.");
-  }
-
-  if (!Number.isInteger(draft.capacity) || draft.capacity < 1) {
-    fail("/venuesignup", "Capacity must be at least one slot.");
-  }
-
-  if (!/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/.test(draft.postalCode)) {
-    fail("/venuesignup", "Please enter a valid UK postcode.");
-  }
-}
-
 async function findUserByEmail(email: string) {
   const supabase = createAdminClient();
   const normalizedEmail = email.toLowerCase();
 
   for (let page = 1; page <= 20; page += 1) {
-    const { data, error } = await supabase.auth.admin.listUsers({
-      page,
-      perPage: 100,
-    });
-
-    if (error) {
-      throw error;
-    }
-
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
+    if (error) throw error;
     const user = data.users.find((item) => item.email?.toLowerCase() === normalizedEmail);
-
-    if (user) {
-      return user;
-    }
-
-    if (data.users.length < 100) {
-      return null;
-    }
+    if (user) return user;
+    if (data.users.length < 100) return null;
   }
 
   return null;
 }
 
-export async function createVenueSignup(formData: FormData) {
-  const latRaw = readField(formData, "latitude");
-  const lngRaw = readField(formData, "longitude");
-  const draft: VenueSignupDraft = {
-    addressLine1: readField(formData, "addressLine1"),
-    addressLine2: readField(formData, "addressLine2"),
-    capacity: Number(readField(formData, "capacity")),
-    city: readField(formData, "city"),
-    contactEmail: readField(formData, "contactEmail").toLowerCase(),
-    contactPhone: readField(formData, "contactPhone"),
-    country: readField(formData, "country"),
-    latitude: latRaw ? Number(latRaw) : null,
-    longitude: lngRaw ? Number(lngRaw) : null,
-    postalCode: readField(formData, "postalCode").toUpperCase(),
-    venueName: readField(formData, "venueName"),
-  };
-
-  if (!isSupabaseAdminConfigured()) {
-    fail("/venuesignup", "Venue registration is temporarily unavailable.");
-  }
-
-  validateVenueDetails(draft);
-
-  await setDraftVenueSignup(draft);
-  redirect("/venuesignup");
-}
+// ── Step 1 → Step 2: select plan ──────────────────────────────────────────────
 
 export async function selectVenuePlan(formData: FormData) {
-  const draft = await getDraftVenueSignup();
   const plan = readField(formData, "plan");
 
   if (!isSupabaseAdminConfigured()) {
     fail("/venuesignup", "Plan selection is temporarily unavailable.");
   }
 
-  if (!draft || !isPlanId(plan)) {
-    fail("/venuesignup", "Please complete the venue details before selecting a plan.");
+  if (!isPlanId(plan)) {
+    fail("/venuesignup", "Invalid plan selected. Please try again.");
   }
 
-  await setDraftVenueSignup({
-    ...draft,
-    billingPlan: plan,
-  });
+  const existing = await getDraftVenueSignup();
+  const draft: VenueSignupDraft = existing
+    ? { ...existing, billingPlan: plan }
+    : {
+        billingPlan: plan,
+        contactName: "",
+        companyName: "",
+        contactEmail: "",
+        contactPhone: "",
+        venueCount: "single",
+        country: "United Kingdom",
+        venues: [],
+      };
 
+  await setDraftVenueSignup(draft);
   redirect("/venuesignup");
 }
 
-export async function finishVenueSignup(formData: FormData) {
-  const draft = await getDraftVenueSignup();
-  const password = readField(formData, "password");
-  const confirmPassword = readField(formData, "confirmPassword");
+// ── Step 2 → Step 3: save venue details ───────────────────────────────────────
 
-  if (!draft) {
-    redirect("/venuependingapproval");
+export async function createVenueSignup(formData: FormData) {
+  const existing = await getDraftVenueSignup();
+  if (!existing?.billingPlan) {
+    fail("/venuesignup", "Please select a plan before entering venue details.");
   }
 
   if (!isSupabaseAdminConfigured()) {
     fail("/venuesignup", "Venue registration is temporarily unavailable.");
   }
 
-  validateVenueDetails(draft);
+  const contactName = readField(formData, "contactName");
+  const companyName = readField(formData, "companyName");
+  const contactEmail = readField(formData, "contactEmail").toLowerCase();
+  const contactPhone = readField(formData, "contactPhone");
+  const venueCount = readField(formData, "venueCount") as "single" | "multiple";
+  const venueQuantityRaw = Number(readField(formData, "venueQuantity") || "1");
+  const country = readField(formData, "country");
 
-  if (!draft.billingPlan) {
-    fail("/venuesignup", "Please select an operating plan before submitting.");
+  if (!contactName) fail("/venuesignup", "Full name is required.");
+  if (!contactEmail || !isValidEmail(contactEmail)) {
+    fail("/venuesignup", "Please enter a valid email address.");
+  }
+  if (!contactPhone) fail("/venuesignup", "Phone number is required.");
+  if (!isValidPhone(contactPhone)) {
+    fail("/venuesignup", "Please enter a valid phone number.");
+  }
+
+  const numVenues = venueCount === "single" ? 1 : Math.min(Math.max(venueQuantityRaw, 2), 3);
+  const venues: VenueEntry[] = [];
+
+  for (let i = 0; i < numVenues; i++) {
+    const p = `venue_${i}`;
+    const venueName = readField(formData, `${p}_venueName`);
+    if (!venueName) fail("/venuesignup", `Venue ${i + 1}: name is required.`);
+
+    const hangerCapacity = Number(readField(formData, `${p}_hangerCapacity`) || "0");
+    const bagCapacity = Number(readField(formData, `${p}_bagCapacity`) || "0");
+    const addressLine1 = readField(formData, `${p}_addressLine1`);
+    if (!addressLine1) fail("/venuesignup", `Venue ${i + 1}: address line 1 is required.`);
+
+    const latRaw = readField(formData, `${p}_latitude`);
+    const lngRaw = readField(formData, `${p}_longitude`);
+
+    venues.push({
+      venueName,
+      hangerCapacity,
+      bagCapacity,
+      addressLine1,
+      addressLine2: readField(formData, `${p}_addressLine2`),
+      city: readField(formData, `${p}_city`),
+      postalCode: readField(formData, `${p}_postalCode`).toUpperCase(),
+      country,
+      latitude: latRaw ? Number(latRaw) : null,
+      longitude: lngRaw ? Number(lngRaw) : null,
+      extraDevices: Number(readField(formData, `${p}_extraDevices`) || "0"),
+    });
+  }
+
+  await setDraftVenueSignup({
+    ...existing,
+    contactName,
+    companyName,
+    contactEmail,
+    contactPhone,
+    venueCount,
+    venueQuantity: venueQuantityRaw,
+    country,
+    venues,
+  });
+
+  redirect("/venuesignup");
+}
+
+// ── Back navigation: clear venue details (keep or clear plan) ─────────────────
+
+export async function clearPlanFromDraft(formData: FormData) {
+  const draft = await getDraftVenueSignup();
+  if (!draft) {
+    redirect("/venuesignup");
+  }
+
+  const keepPlan = readField(formData, "keepPlan") === "1";
+
+  if (keepPlan) {
+    // Going back from step 3 → 2: keep plan, clear saved venues so step detection lands on step 2
+    await setDraftVenueSignup({
+      ...draft,
+      venues: [],
+      contactName: draft.contactName ?? "",
+      companyName: draft.companyName ?? "",
+      contactEmail: draft.contactEmail ?? "",
+      contactPhone: draft.contactPhone ?? "",
+      venueCount: draft.venueCount ?? "single",
+      country: draft.country ?? "United Kingdom",
+    });
+  } else {
+    // Going back from step 2 → 1: clear everything except maybe keep the plan cleared too
+    await clearDraftVenueSignup();
+  }
+
+  redirect("/venuesignup");
+}
+
+// ── Step 3: finish signup ──────────────────────────────────────────────────────
+
+export async function finishVenueSignup(formData: FormData) {
+  const draft = await getDraftVenueSignup();
+  const password = readField(formData, "password");
+  const confirmPassword = readField(formData, "confirmPassword");
+
+  if (!draft || !draft.billingPlan || !draft.venues.length) {
+    fail("/venuesignup", "Please complete all steps before submitting.");
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    fail("/venuesignup", "Venue registration is temporarily unavailable.");
+  }
+
+  if (!isValidEmail(draft.contactEmail)) {
+    fail("/venuesignup", "Please enter a valid contact email address.");
   }
 
   if (password.length < 8) {
@@ -157,22 +206,7 @@ export async function finishVenueSignup(formData: FormData) {
   }
 
   const supabase = createAdminClient();
-  const recentDuplicateWindow = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: duplicateVenue } = await supabase
-    .from("venues")
-    .select("id")
-    .eq("approval_status", "pending")
-    .eq("contact_email", draft.contactEmail)
-    .gte("created_at", recentDuplicateWindow)
-    .not("submitted_at", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (duplicateVenue?.[0]) {
-    await setSubmittedVenueId(duplicateVenue[0].id);
-    await clearDraftVenueSignup();
-    redirect("/venuependingapproval");
-  }
+  const primaryVenue = draft.venues[0];
 
   let manager = await findUserByEmail(draft.contactEmail);
 
@@ -182,7 +216,7 @@ export async function finishVenueSignup(formData: FormData) {
       email_confirm: true,
       password,
       user_metadata: {
-        full_name: `${draft.venueName} Manager`,
+        full_name: draft.contactName || `${primaryVenue.venueName} Manager`,
       },
     });
 
@@ -195,7 +229,7 @@ export async function finishVenueSignup(formData: FormData) {
     const { error } = await supabase.auth.admin.updateUserById(manager.id, {
       password,
       user_metadata: {
-        full_name: manager.user_metadata?.full_name ?? `${draft.venueName} Manager`,
+        full_name: manager.user_metadata?.full_name ?? draft.contactName ?? `${primaryVenue.venueName} Manager`,
       },
     });
 
@@ -212,7 +246,7 @@ export async function finishVenueSignup(formData: FormData) {
 
   const { error: profileError } = await supabase.from("profiles").upsert({
     email: draft.contactEmail,
-    full_name: `${draft.venueName} Manager`,
+    full_name: draft.contactName || `${primaryVenue.venueName} Manager`,
     id: manager.id,
     phone: draft.contactPhone,
     role: existingProfile?.role ?? "guest",
@@ -222,44 +256,54 @@ export async function finishVenueSignup(formData: FormData) {
     fail("/venuesignup", "We could not prepare the manager profile. Please try again.");
   }
 
-  const address = [draft.addressLine1, draft.addressLine2].filter(Boolean).join(", ");
-  const { data: venue, error: venueError } = await supabase
-    .from("venues")
-    .insert({
-      address,
-      billing_plan: draft.billingPlan,
-      billing_status: "trialing",
-      capacity: draft.capacity,
-      city: draft.city,
-      contact_email: draft.contactEmail,
-      contact_phone: draft.contactPhone,
-      country: draft.country,
-      created_by: manager.id,
-      latitude: draft.latitude ?? null,
-      longitude: draft.longitude ?? null,
-      name: draft.venueName,
-      postal_code: draft.postalCode,
-      slug: slugifyVenueName(draft.venueName),
-      stripe_customer_id: `sample_${crypto.randomUUID()}`,
-      stripe_price_id: `sample_${draft.billingPlan}`,
-      submitted_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
+  const now = new Date().toISOString();
+  let firstVenueId: string | undefined;
 
-  if (venueError || !venue) {
-    fail("/venuesignup", "We could not create the venue registration. Please try again.");
-  }
+  for (const entry of draft.venues) {
+    const address = [entry.addressLine1, entry.addressLine2].filter(Boolean).join(", ");
+    const { data: venue, error: venueError } = await supabase
+      .from("venues")
+      .insert({
+        active: true,
+        address,
+        billing_plan: draft.billingPlan,
+        billing_status: "trialing",
+        capacity: entry.hangerCapacity + entry.bagCapacity,
+        city: entry.city,
+        contact_email: draft.contactEmail,
+        contact_phone: draft.contactPhone,
+        country: entry.country,
+        created_by: manager.id,
+        extra_devices: entry.extraDevices,
+        hanger_capacity: entry.hangerCapacity,
+        bag_capacity: entry.bagCapacity,
+        latitude: entry.latitude ?? null,
+        longitude: entry.longitude ?? null,
+        name: entry.venueName,
+        postal_code: entry.postalCode,
+        slug: slugifyVenueName(entry.venueName),
+        stripe_customer_id: `sample_${crypto.randomUUID()}`,
+        stripe_price_id: `sample_${draft.billingPlan}`,
+      })
+      .select("id")
+      .single();
 
-  const { error: staffError } = await supabase.from("venue_staff").insert({
-    accepted_at: new Date().toISOString(),
-    profile_id: manager.id,
-    role: "manager",
-    venue_id: venue.id,
-  });
+    if (venueError || !venue) {
+      fail("/venuesignup", "We could not create the venue registration. Please try again.");
+    }
 
-  if (staffError) {
-    fail("/venuesignup", "We could not assign the venue manager. Please try again.");
+    if (!firstVenueId) firstVenueId = venue.id;
+
+    const { error: staffError } = await supabase.from("venue_staff").insert({
+      accepted_at: now,
+      profile_id: manager.id,
+      role: "manager",
+      venue_id: venue.id,
+    });
+
+    if (staffError) {
+      fail("/venuesignup", "We could not assign the venue manager. Please try again.");
+    }
   }
 
   await clearDraftVenueSignup();
@@ -268,15 +312,15 @@ export async function finishVenueSignup(formData: FormData) {
   if (adminEmail) {
     await sendEmail({
       to: adminEmail,
-      subject: `New venue pending review: ${draft.venueName}`,
+      subject: `New venue signup: ${primaryVenue.venueName}`,
       react: NewVenuePendingEmail({
         billingPlan: draft.billingPlan ?? "unknown",
-        capacity: draft.capacity,
-        city: draft.city,
+        capacity: primaryVenue.hangerCapacity + primaryVenue.bagCapacity,
+        city: primaryVenue.city,
         contactEmail: draft.contactEmail,
-        contactName: `${draft.venueName} Manager`,
+        contactName: draft.contactName ?? `${primaryVenue.venueName} Manager`,
         dashboardUrl: `${getSiteUrl()}/masterdashboard`,
-        venueName: draft.venueName,
+        venueName: primaryVenue.venueName,
       }),
     });
   }

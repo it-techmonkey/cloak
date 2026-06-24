@@ -21,9 +21,9 @@ export default function BrandingPreview({
 }) {
   if (!venue) {
     return (
-      <Panel title="Submission review">
+      <Panel title="Review & submit">
         <p className="text-sm leading-6 text-muted">
-          Complete the previous steps before submitting the venue for approval.
+          Complete the previous steps before submitting.
         </p>
       </Panel>
     );
@@ -31,15 +31,21 @@ export default function BrandingPreview({
 
   return (
     <Panel
-      title="Submission review"
-      description="Review your registration details and set the manager account password. Platform review typically completes within one business day."
+      title="Review & submit"
+      description="Confirm your details and create your manager account password to go live."
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <FieldPreview label="Venue" value={venue.name} />
+        <FieldPreview label="Contact name" value={venue.contactName ?? ""} />
         <FieldPreview label="Contact email" value={venue.contactEmail} />
+        <FieldPreview label="Company" value={venue.companyName ?? ""} />
         <FieldPreview label="Plan" value={formatPlan(venue.billingPlan)} />
-        <FieldPreview label="Billing" value="Plan selected" />
-        <FieldPreview label="Platform status" value="Pending approval" />
+        {venue.venueNames && venue.venueNames.length > 0 && (
+          <FieldPreview
+            label={venue.venueNames.length === 1 ? "Venue" : "Venues"}
+            value={venue.venueNames.join(", ")}
+          />
+        )}
+        <FieldPreview label="Status" value="Active on submission" />
       </div>
       {error ? (
         <p className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
@@ -55,7 +61,7 @@ export default function BrandingPreview({
               className="w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8"
               minLength={8}
               name="password"
-              placeholder="Minimum 8 characters"
+              placeholder="Create a password"
               required
               type="password"
             />
@@ -67,13 +73,13 @@ export default function BrandingPreview({
               className="w-full rounded-lg border border-line bg-white px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-zinc-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8"
               minLength={8}
               name="confirmPassword"
-              placeholder="Re-enter password"
+              placeholder="Confirm your password"
               required
               type="password"
             />
           </label>
         </div>
-        <SubmitButton>Submit for approval</SubmitButton>
+        <SubmitButton>Create account &amp; go live</SubmitButton>
       </form>
     </Panel>
   );

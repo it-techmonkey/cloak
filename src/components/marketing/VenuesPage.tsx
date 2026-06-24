@@ -129,9 +129,9 @@ export default function VenuesPage() {
                 </Link>
                 <Link
                   className="inline-flex items-center rounded-xl border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                  href="/register-interest"
+                  href="/book-a-demo"
                 >
-                  Talk to us first
+                  Book a Demo
                 </Link>
               </div>
               <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
@@ -226,7 +226,7 @@ export default function VenuesPage() {
             <div className="relative overflow-hidden rounded-2xl shadow-xl">
               <img
                 alt="Staff member scanning a QR pass on their phone at a venue counter"
-                className="h-72 w-full object-cover sm:h-96 lg:h-[480px]"
+                className="h-72 w-full object-cover sm:h-96 lg:h-120"
                 src={scanImg}
               />
               <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent" />
@@ -255,7 +255,7 @@ export default function VenuesPage() {
             <div className="relative overflow-hidden rounded-2xl shadow-xl lg:order-last">
               <img
                 alt="Busy event crowd — the venue environment Cloak is designed for"
-                className="h-72 w-full object-cover sm:h-96 lg:h-[460px]"
+                className="h-72 w-full object-cover sm:h-96 lg:h-115"
                 src={crowdImg}
               />
               <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
@@ -354,9 +354,9 @@ export default function VenuesPage() {
               </Link>
               <Link
                 className="inline-flex items-center justify-center rounded-xl border border-white/20 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10"
-                href="/register-interest"
+                href="/book-a-demo"
               >
-                Talk to us first
+                Book a Demo
               </Link>
             </div>
           </div>

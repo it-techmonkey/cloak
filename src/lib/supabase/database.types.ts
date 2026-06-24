@@ -97,6 +97,7 @@ export type Database = {
           label: string;
           notes: string | null;
           quantity: number;
+          storage_location: string | null;
           ticket_id: string;
         };
         Insert: {
@@ -108,6 +109,7 @@ export type Database = {
           label: string;
           notes?: string | null;
           quantity?: number;
+          storage_location?: string | null;
           ticket_id: string;
         };
         Update: {
@@ -119,6 +121,7 @@ export type Database = {
           label?: string;
           notes?: string | null;
           quantity?: number;
+          storage_location?: string | null;
           ticket_id?: string;
         };
         Relationships: [];
@@ -313,12 +316,12 @@ export type Database = {
         Row: {
           active: boolean;
           address: string | null;
-          approval_status: Database["public"]["Enums"]["venue_approval_status"];
-          approved_at: string | null;
-          approved_by: string | null;
           billing_plan: Database["public"]["Enums"]["billing_plan"] | null;
           billing_status: Database["public"]["Enums"]["billing_status"];
           capacity: number;
+          hanger_capacity: number;
+          bag_capacity: number;
+          extra_devices: number;
           city: string | null;
           contact_email: string;
           contact_phone: string | null;
@@ -330,24 +333,22 @@ export type Database = {
           latitude: number | null;
           longitude: number | null;
           postal_code: string | null;
-          rejection_reason: string | null;
           slug: string;
           stripe_customer_id: string | null;
           stripe_price_id: string | null;
           stripe_subscription_id: string | null;
-          submitted_at: string | null;
           ticket_expiry_hours: number | null;
           updated_at: string;
         };
         Insert: {
           active?: boolean;
           address?: string | null;
-          approval_status?: Database["public"]["Enums"]["venue_approval_status"];
-          approved_at?: string | null;
-          approved_by?: string | null;
           billing_plan?: Database["public"]["Enums"]["billing_plan"] | null;
           billing_status?: Database["public"]["Enums"]["billing_status"];
           capacity?: number;
+          hanger_capacity?: number;
+          bag_capacity?: number;
+          extra_devices?: number;
           city?: string | null;
           contact_email: string;
           contact_phone?: string | null;
@@ -359,24 +360,22 @@ export type Database = {
           postal_code?: string | null;
           latitude?: number | null;
           longitude?: number | null;
-          rejection_reason?: string | null;
           slug: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;
           stripe_subscription_id?: string | null;
-          submitted_at?: string | null;
           ticket_expiry_hours?: number | null;
           updated_at?: string;
         };
         Update: {
           active?: boolean;
           address?: string | null;
-          approval_status?: Database["public"]["Enums"]["venue_approval_status"];
-          approved_at?: string | null;
-          approved_by?: string | null;
           billing_plan?: Database["public"]["Enums"]["billing_plan"] | null;
           billing_status?: Database["public"]["Enums"]["billing_status"];
           capacity?: number;
+          hanger_capacity?: number;
+          bag_capacity?: number;
+          extra_devices?: number;
           city?: string | null;
           contact_email?: string;
           contact_phone?: string | null;
@@ -388,12 +387,10 @@ export type Database = {
           latitude?: number | null;
           longitude?: number | null;
           postal_code?: string | null;
-          rejection_reason?: string | null;
           slug?: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;
           stripe_subscription_id?: string | null;
-          submitted_at?: string | null;
           ticket_expiry_hours?: number | null;
           updated_at?: string;
         };

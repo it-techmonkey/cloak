@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
-  approveVenue,
-  queryVenue,
+  activateVenue,
   suspendVenue,
 } from "@/app/masterdashboard/actions";
 import type { AdminVenueReview } from "@/lib/admin-dashboard";
@@ -219,7 +218,17 @@ function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose
                     label="Address"
                     value={[venue.address, venue.city, venue.postalCode].filter(Boolean).join(", ")}
                   />
-                  <DetailField label="Capacity" value={venue.capacity ? `${venue.capacity} slots` : "—"} />
+                  <DetailField
+                    label="Capacity"
+                    value={
+                      venue.hangerCapacity || venue.bagCapacity
+                        ? `${venue.hangerCapacity} hangers · ${venue.bagCapacity} bags`
+                        : venue.capacity
+                          ? `${venue.capacity} slots`
+                          : "—"
+                    }
+                  />
+                  <DetailField label="Devices" value={`${1 + venue.extraDevices} total (${venue.extraDevices} extra)`} />
                   <DetailField label="Plan" value={formatPlan(venue.billingPlan)} />
                   <DetailField label="Billing" value={venue.billingStatus} />
                   <DetailField label="Submitted" value={formatDate(venue.submittedAt)} />
@@ -227,48 +236,6 @@ function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose
                 </div>
               </div>
 
-              <div className="rounded-xl border border-line bg-white p-5">
-                <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-muted">
-                  Communication thread
-                </p>
-                {thread.length > 0 ? (
-                  <QueryThread turns={thread} />
-                ) : (
-                  <p className="rounded-lg border border-dashed border-line px-4 py-5 text-center text-sm text-muted">
-                    No messages yet. Use "Request information" below to open a thread.
-                  </p>
-                )}
-
-                {view === "query" && (
-                  <div className="mt-4 space-y-3">
-                    <textarea
-                      autoFocus
-                      className="w-full resize-none rounded-xl border border-line bg-zinc-50 px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
-                      onChange={(e) => setNewQuery(e.target.value)}
-                      placeholder="What information is needed before this venue can be approved?"
-                      rows={3}
-                      value={newQuery}
-                    />
-                    <div className="flex items-center gap-2">
-                      <ActionBtn
-                        className="rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-white transition hover:opacity-80"
-                        disabled={!newQuery.trim()}
-                        onClick={() => { runAction(queryVenue, { message: newQuery }); setView("actions"); setNewQuery(""); }}
-                        pending={isPending}
-                      >
-                        Send query
-                      </ActionBtn>
-                      <button
-                        className="text-sm text-muted hover:text-foreground"
-                        onClick={() => setView("actions")}
-                        type="button"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Right — actions */}
@@ -276,36 +243,6 @@ function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose
               <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-muted">Actions</p>
 
               <div className="space-y-2">
-                {venue.status === "pending" && view !== "suspend" && (
-                  <>
-                    <ActionBtn
-                      className="flex w-full items-center justify-center rounded-xl bg-foreground py-3 text-sm font-semibold text-white transition hover:opacity-80"
-                      onClick={() => runAction(approveVenue)}
-                      pending={isPending}
-                    >
-                      Approve venue
-                    </ActionBtn>
-                    {view === "actions" && (
-                      <button
-                        className="flex w-full items-center justify-center rounded-xl border border-line py-3 text-sm font-medium text-foreground transition hover:bg-zinc-50"
-                        disabled={isPending}
-                        onClick={() => setView("query")}
-                        type="button"
-                      >
-                        {thread.length > 0 ? "Send follow-up" : "Request information"}
-                      </button>
-                    )}
-                    <button
-                      className="flex w-full items-center justify-center rounded-xl border border-line py-3 text-sm font-medium text-muted transition hover:bg-zinc-50 hover:text-foreground"
-                      disabled={isPending}
-                      onClick={() => setView("suspend")}
-                      type="button"
-                    >
-                      Reject application
-                    </button>
-                  </>
-                )}
-
                 {venue.status === "approved" && view !== "suspend" && (
                   <button
                     className="flex w-full items-center justify-center rounded-xl border border-line py-3 text-sm font-medium text-muted transition hover:bg-zinc-50 hover:text-foreground"
@@ -346,13 +283,13 @@ function VenueDetailPanel({ venue, onClose }: { venue: AdminVenueReview; onClose
                   </div>
                 )}
 
-                {(venue.status === "suspended" || venue.status === "rejected") && (
+                {venue.status === "suspended" && view !== "suspend" && (
                   <ActionBtn
-                    className="flex w-full items-center justify-center rounded-xl bg-foreground py-3 text-sm font-semibold text-white transition hover:opacity-80"
-                    onClick={() => runAction(approveVenue)}
+                    className="flex w-full items-center justify-center rounded-xl border border-amber-300 bg-amber-100 py-3 text-sm font-semibold text-amber-900 transition hover:bg-amber-200"
+                    onClick={() => { runAction(activateVenue); setView("actions"); }}
                     pending={isPending}
                   >
-                    Reinstate venue
+                    Reactivate venue
                   </ActionBtn>
                 )}
               </div>

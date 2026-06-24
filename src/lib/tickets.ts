@@ -12,13 +12,22 @@ export type PublicVenueOption = {
   slug: string;
 };
 
+export type PublicTicketItem = {
+  id: string;
+  label: string;
+  storageLocation: string | null;
+  collected: boolean;
+};
+
 export type PublicTicket = {
+  dbId: string;
   email: string;
   expiresAt: string;
   guestName: string;
   itemCount: number;
   itemDescription: string | null;
   itemType: string | null;
+  items: PublicTicketItem[];
   mobile: string;
   status: TicketStatus;
   storageLocation: string | null;
@@ -40,7 +49,6 @@ export async function getSelectableVenues(): Promise<PublicVenueOption[]> {
     .from("venues")
     .select("id, name, slug, city, address")
     .eq("active", true)
-    .eq("approval_status", "approved")
     .in("billing_status", ["trialing", "active"])
     .order("name", { ascending: true });
 
@@ -84,7 +92,7 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
   const { data, error } = await supabase
     .from("tickets")
     .select(
-      "public_code, guest_email, guest_name, guest_phone, status, venue_id, expires_at, item_type, item_count, item_description, storage_location",
+      "id, public_code, guest_email, guest_name, guest_phone, status, venue_id, expires_at, item_type, item_count, item_description, storage_location",
     )
     .eq(column, value)
     .maybeSingle();
@@ -93,23 +101,37 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
     return { status: "invalid" as const, ticket: null };
   }
 
-  const { data: venue } = await supabase
-    .from("venues")
-    .select("name, slug, address, city")
-    .eq("id", data.venue_id)
-    .maybeSingle();
+  const [{ data: venue }, { data: itemRows }] = await Promise.all([
+    supabase
+      .from("venues")
+      .select("name, slug, address, city")
+      .eq("id", data.venue_id)
+      .maybeSingle(),
+    supabase
+      .from("ticket_items")
+      .select("id, label, storage_location, collected_at")
+      .eq("ticket_id", data.id)
+      .order("added_at", { ascending: true }),
+  ]);
 
   const status = normalizeTicketStatus(data);
 
   return {
     status: status === "expired" ? ("expired" as const) : ("found" as const),
     ticket: {
+      dbId: data.id,
       email: data.guest_email ?? "",
       expiresAt: data.expires_at,
       guestName: data.guest_name,
       itemCount: data.item_count,
       itemDescription: data.item_description,
       itemType: data.item_type,
+      items: (itemRows ?? []).map((r) => ({
+        id: r.id,
+        label: r.label,
+        storageLocation: r.storage_location ?? null,
+        collected: r.collected_at !== null,
+      })),
       mobile: data.guest_phone,
       status,
       storageLocation: data.storage_location,

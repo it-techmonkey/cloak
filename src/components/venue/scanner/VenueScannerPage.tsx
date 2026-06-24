@@ -1,35 +1,63 @@
-import Link from "next/link";
-import AppHeader from "@/components/shared/AppHeader";
+import { PrimaryLink, SecondaryLink } from "@/components/shared/ButtonLink";
+import PageShell from "@/components/shared/PageShell";
 import ScannerFrame from "./ScannerFrame";
 
-export default function VenueScannerPage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader activePath="/venuescanner" venueRole="staff" />
-      <main className="mx-auto w-full max-w-5xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted">Scanner</p>
-            <h1 className="mt-1 text-xl font-semibold text-foreground">Verify ticket</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-muted transition hover:border-foreground/20 hover:text-foreground"
-              href="/smsbackup"
-              title="Find a ticket when the guest has no phone or code"
-            >
-              Phone lookup
-            </Link>
-            <Link
-              className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-muted transition hover:border-foreground/20 hover:text-foreground"
-              href="/venuedashboard"
-            >
-              ← Dashboard
-            </Link>
+export default function VenueScannerPage({
+  venues,
+  selectedVenueId,
+  venueRole = "staff",
+}: {
+  venues: Array<{ id: string; name: string }>;
+  selectedVenueId?: string;
+  venueRole?: "staff" | "manager";
+}) {
+  const selectedVenue = venues.find((v) => v.id === selectedVenueId);
+
+  // If there are multiple venues and no valid venue is selected, show a picker.
+  if (venues.length > 1 && !selectedVenueId) {
+    return (
+      <PageShell
+        activePath="/venuescanner"
+        eyebrow="Scanner"
+        title="Select venue"
+        venueRole={venueRole}
+      >
+        <div className="mx-auto w-full max-w-sm">
+          <p className="mb-4 text-sm text-muted">Choose which venue you are scanning for.</p>
+          <div className="grid gap-3">
+            {venues.map((v) => (
+              <a
+                className="block rounded-xl border border-line bg-white px-5 py-4 text-sm font-medium text-foreground transition hover:border-foreground/20 hover:bg-zinc-50"
+                href={`/venuescanner?venueId=${v.id}`}
+                key={v.id}
+              >
+                {v.name}
+              </a>
+            ))}
           </div>
         </div>
-        <ScannerFrame />
-      </main>
-    </div>
+      </PageShell>
+    );
+  }
+
+  const eyebrow = selectedVenue ? selectedVenue.name : "Scanner";
+
+  return (
+    <PageShell
+      activePath="/venuescanner"
+      eyebrow={eyebrow}
+      title="Verify ticket"
+      venueRole={venueRole}
+      actions={
+        <>
+          <SecondaryLink href="/smsbackup">Phone lookup</SecondaryLink>
+          {venues.length > 1 && (
+            <SecondaryLink href="/venuescanner">Switch venue</SecondaryLink>
+          )}
+        </>
+      }
+    >
+      <ScannerFrame venueId={selectedVenueId} />
+    </PageShell>
   );
 }

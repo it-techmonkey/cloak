@@ -15,11 +15,16 @@ export type LiveCounts = {
   today: number;
   forgotten: number;
   capacity: number;
+  hangerCapacity: number;
+  bagCapacity: number;
+  hangerStored: number;
+  bagStored: number;
 };
 
 function buildStats(counts: LiveCounts): Stat[] {
-  const utilization =
-    counts.capacity > 0 ? Math.round((counts.stored / counts.capacity) * 100) : 0;
+  const totalUsed = counts.stored;
+  const totalCapacity = counts.hangerCapacity + counts.bagCapacity || counts.capacity;
+  const utilization = totalCapacity > 0 ? Math.round((totalUsed / totalCapacity) * 100) : 0;
   return [
     { helper: "Tickets created today", label: "Today", value: String(counts.today), tone: "neutral" },
     { helper: "Waiting at counter", label: "Pending", value: String(counts.pending), tone: "warning" },
@@ -35,14 +40,14 @@ function buildStats(counts: LiveCounts): Stat[] {
   ];
 }
 
-function CapacityBar({ used, total }: { used: number; total: number }) {
+function CapacityBar({ label, used, total }: { label: string; used: number; total: number }) {
   const pct = Math.min(Math.round((used / total) * 100), 100);
   const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500";
 
   return (
     <div className="rounded-xl border border-line bg-panel px-5 py-4">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-foreground">Cloak slots in use</span>
+        <span className="font-medium text-foreground">{label}</span>
         <span className="tabular-nums text-muted">
           {used} / {total}
         </span>
@@ -104,7 +109,7 @@ export default function LiveDashboardStats({
       const now = new Date().toISOString();
       const today = todayStart.toISOString();
 
-      const [pending, stored, collected, all, forgotten] = await Promise.all([
+      const [pending, storedTickets, collected, all, forgotten, occupiedItems] = await Promise.all([
         supabase
           .from("tickets")
           .select("id", { count: "exact", head: true })
@@ -114,7 +119,7 @@ export default function LiveDashboardStats({
           .from("tickets")
           .select("id", { count: "exact", head: true })
           .eq("venue_id", venueId!)
-          .eq("status", "active"),
+          .in("status", ["active", "partially_collected"]),
         supabase
           .from("tickets")
           .select("id", { count: "exact", head: true })
@@ -132,12 +137,35 @@ export default function LiveDashboardStats({
           .eq("venue_id", venueId!)
           .eq("status", "pending_activation")
           .lt("expires_at", now),
+        // Fetch active/partial ticket IDs to join against ticket_items
+        supabase
+          .from("tickets")
+          .select("id")
+          .eq("venue_id", venueId!)
+          .in("status", ["active", "partially_collected"]),
       ]);
+
+      const activeIds = (occupiedItems.data ?? []).map((t) => t.id);
+      let hangerStored = 0;
+      let bagStored = 0;
+
+      if (activeIds.length > 0) {
+        const { data: itemRows } = await supabase
+          .from("ticket_items")
+          .select("storage_location")
+          .in("ticket_id", activeIds)
+          .not("storage_location", "is", null)
+          .is("collected_at", null);
+        hangerStored = (itemRows ?? []).filter((i) => i.storage_location?.startsWith("H-")).length;
+        bagStored = (itemRows ?? []).filter((i) => i.storage_location?.startsWith("B-")).length;
+      }
 
       setCounts((prev) => ({
         ...prev,
+        bagStored,
+        hangerStored,
         pending: pending.count ?? prev.pending,
-        stored: stored.count ?? prev.stored,
+        stored: storedTickets.count ?? prev.stored,
         collected: collected.count ?? prev.collected,
         today: all.count ?? prev.today,
         forgotten: forgotten.count ?? prev.forgotten,
@@ -158,12 +186,22 @@ export default function LiveDashboardStats({
     };
   }, [venueId]);
 
+  const showHanger = showCapacityBar && counts.hangerCapacity > 0;
+  const showBag = showCapacityBar && counts.bagCapacity > 0;
+  const showLegacy = showCapacityBar && !showHanger && !showBag && counts.capacity > 0;
+
   return (
     <>
       <PendingAlert count={counts.pending} />
       <VenueStats stats={buildStats(counts)} />
-      {showCapacityBar && counts.capacity > 0 && (
-        <CapacityBar used={counts.stored} total={counts.capacity} />
+      {showHanger && (
+        <CapacityBar label="Hanger slots in use" used={counts.hangerStored} total={counts.hangerCapacity} />
+      )}
+      {showBag && (
+        <CapacityBar label="Bag slots in use" used={counts.bagStored} total={counts.bagCapacity} />
+      )}
+      {showLegacy && (
+        <CapacityBar label="Cloak slots in use" used={counts.stored} total={counts.capacity} />
       )}
     </>
   );

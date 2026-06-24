@@ -1,6 +1,5 @@
 import Link from "next/link";
 import GuestFormPreview from "./GuestFormPreview";
-import QrValidityRules from "./QrValidityRules";
 import type { PublicVenueOption } from "@/lib/tickets";
 import type { PublicEventOption } from "@/lib/events";
 
@@ -23,7 +22,7 @@ export default function GuestCheckInPage({
       <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link className="flex items-center gap-2.5" href="/">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-foreground text-xs font-bold text-white">CL</span>
+            <img alt="Cloak" className="h-8 w-8 rounded-lg object-cover" src="/images/cloak-logo.png" />
             <span className="text-sm font-semibold text-foreground">Cloak</span>
           </Link>
           <Link
@@ -102,10 +101,6 @@ export default function GuestCheckInPage({
 
             <GuestFormPreview defaultVenueId={defaultVenueId} error={error} eventsByVenue={eventsByVenue} venues={venues} />
 
-            {/* How it works — collapsed into accordion on mobile, visible below on desktop */}
-            <div className="mt-6">
-              <QrValidityRules />
-            </div>
           </div>
         </div>
       </div>

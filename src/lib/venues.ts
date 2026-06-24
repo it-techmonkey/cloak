@@ -5,10 +5,13 @@ export type VenueSignupSummary = {
   billingPlan: "starter" | "professional" | "per_event" | null;
   billingStatus: string;
   city: string | null;
+  companyName?: string;
   contactEmail: string;
+  contactName?: string;
   id?: string;
   name: string;
   slug?: string;
+  venueNames?: string[];
 };
 
 export const venuePlans = [
@@ -18,6 +21,9 @@ export const venuePlans = [
     price: "£49 / month",
     description: "For smaller venues running one cloakroom counter.",
     features: ["Up to 250 tickets per month", "QR and fallback code verification", "Basic venue dashboard"],
+    venues: "1 venue",
+    devices: "1 device included",
+    enterprise: false,
   },
   {
     id: "professional",
@@ -25,6 +31,9 @@ export const venuePlans = [
     price: "£149 / month",
     description: "For busy venues with regular storage operations.",
     features: ["Up to 1,500 tickets per month", "Staff scanner workflow", "Analytics and ticket history"],
+    venues: "Up to 3 venues",
+    devices: "1 device per venue",
+    enterprise: false,
   },
   {
     id: "per_event",
@@ -32,6 +41,9 @@ export const venuePlans = [
     price: "£399 / event",
     description: "For temporary cloakrooms, launches, and one-off events.",
     features: ["Event-ready onboarding", "Guest QR pass flow", "Post-event operations review"],
+    venues: "1 venue per event",
+    devices: "1 device included",
+    enterprise: false,
   },
 ] as const;
 

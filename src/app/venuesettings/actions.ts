@@ -11,12 +11,14 @@ function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
-function finish(message: string): never {
-  redirect(`/venuesettings?message=${encodeURIComponent(message)}`);
+function finish(message: string, venueId?: string): never {
+  const suffix = venueId ? `&venueId=${encodeURIComponent(venueId)}` : "";
+  redirect(`/venuesettings?message=${encodeURIComponent(message)}${suffix}`);
 }
 
-function fail(message: string): never {
-  redirect(`/venuesettings?error=${encodeURIComponent(message)}`);
+function fail(message: string, venueId?: string): never {
+  const suffix = venueId ? `&venueId=${encodeURIComponent(venueId)}` : "";
+  redirect(`/venuesettings?error=${encodeURIComponent(message)}${suffix}`);
 }
 
 async function findUserByEmail(email: string) {
@@ -46,14 +48,36 @@ export async function createVenueStaffAccount(formData: FormData) {
     fail("Staff account creation is temporarily unavailable.");
   }
 
-  const venueId = guard.venueRoles.find((r) => r.role === "manager")?.venueId;
-  if (!venueId) fail("No managed venue was found for this account.");
+  const venueId =
+    readField(formData, "venueId") || guard.venueRoles.find((r) => r.role === "manager")?.venueId;
+  if (!venueId || !guard.venueRoles.some((r) => r.venueId === venueId && r.role === "manager")) {
+    fail("No managed venue was found for this account.");
+  }
 
-  if (!fullName || !email || !password) fail("Please complete all staff account details.");
-  if (!isValidEmail(email)) fail("Please enter a valid staff email address.");
-  if (password.length < 8) fail("Staff password must be at least 8 characters.");
+  if (!fullName || !email || !password) fail("Please complete all staff account details.", venueId);
+  if (!isValidEmail(email)) fail("Please enter a valid staff email address.", venueId);
+  if (password.length < 8) fail("Staff password must be at least 8 characters.", venueId);
 
   const supabase = createAdminClient();
+
+  // Enforce device limit before creating the account
+  const [venueRow, existingStaffResult] = await Promise.all([
+    supabase.from("venues").select("extra_devices").eq("id", venueId).maybeSingle(),
+    supabase
+      .from("venue_staff")
+      .select("id", { count: "exact", head: true })
+      .eq("venue_id", venueId)
+      .eq("role", "staff"),
+  ]);
+  const totalDevices = 1 + (venueRow.data?.extra_devices ?? 0);
+  const usedDevices = (existingStaffResult.count ?? 0) + 1; // +1 for the manager
+  if (usedDevices >= totalDevices) {
+    fail(
+      `Device limit reached. Your plan allows ${totalDevices} device${totalDevices === 1 ? "" : "s"} (including the manager account).`,
+      venueId,
+    );
+  }
+
   let user = await findUserByEmail(email);
 
   if (!user) {
@@ -63,14 +87,14 @@ export async function createVenueStaffAccount(formData: FormData) {
       password,
       user_metadata: { full_name: fullName },
     });
-    if (error || !data.user) fail("We could not create the staff account. Please try again.");
+    if (error || !data.user) fail("We could not create the staff account. Please try again.", venueId);
     user = data.user;
   } else {
     const { error } = await supabase.auth.admin.updateUserById(user.id, {
       password,
       user_metadata: { full_name: fullName },
     });
-    if (error) fail("We could not update the staff account. Please try again.");
+    if (error) fail("We could not update the staff account. Please try again.", venueId);
   }
 
   const { data: existingProfile } = await supabase
@@ -85,7 +109,7 @@ export async function createVenueStaffAccount(formData: FormData) {
     id: user.id,
     role: existingProfile?.role ?? "guest",
   });
-  if (profileError) fail("We could not prepare the staff profile. Please try again.");
+  if (profileError) fail("We could not prepare the staff profile. Please try again.", venueId);
 
   const { data: existingStaff } = await supabase
     .from("venue_staff")
@@ -106,10 +130,10 @@ export async function createVenueStaffAccount(formData: FormData) {
       role: "staff",
       venue_id: venueId,
     });
-    if (staffError) fail("We could not attach the staff account to this venue.");
+    if (staffError) fail("We could not attach the staff account to this venue.", venueId);
   }
 
-  finish("Staff account created.");
+  finish("Staff account created.", venueId);
 }
 
 // ─── Remove staff member ───────────────────────────────────────────────────────
@@ -122,9 +146,12 @@ export async function removeStaffMember(formData: FormData) {
     fail("This action is temporarily unavailable.");
   }
 
-  const venueId = guard.venueRoles.find((r) => r.role === "manager")?.venueId;
-  if (!venueId) fail("No managed venue was found for this account.");
-  if (!staffId) fail("Staff member not identified.");
+  const venueId =
+    readField(formData, "venueId") || guard.venueRoles.find((r) => r.role === "manager")?.venueId;
+  if (!venueId || !guard.venueRoles.some((r) => r.venueId === venueId && r.role === "manager")) {
+    fail("No managed venue was found for this account.");
+  }
+  if (!staffId) fail("Staff member not identified.", venueId);
 
   const supabase = createAdminClient();
 
@@ -136,15 +163,15 @@ export async function removeStaffMember(formData: FormData) {
     .eq("venue_id", venueId)
     .maybeSingle();
 
-  if (!staffRow) fail("Staff member not found in this venue.");
-  if (staffRow.role === "manager") fail("Managers cannot be removed from this page.");
-  if (staffRow.profile_id === guard.userId) fail("You cannot remove your own account.");
+  if (!staffRow) fail("Staff member not found in this venue.", venueId);
+  if (staffRow.role === "manager") fail("Managers cannot be removed from this page.", venueId);
+  if (staffRow.profile_id === guard.userId) fail("You cannot remove your own account.", venueId);
 
   const { error } = await supabase.from("venue_staff").delete().eq("id", staffId);
-  if (error) fail("Could not remove staff member. Please try again.");
+  if (error) fail("Could not remove staff member. Please try again.", venueId);
 
   revalidatePath("/venuesettings");
-  finish("Staff member removed.");
+  finish("Staff member removed.", venueId);
 }
 
 // ─── Update venue details ──────────────────────────────────────────────────────
@@ -156,39 +183,46 @@ export async function updateVenueDetails(formData: FormData) {
     fail("Venue updates are temporarily unavailable.");
   }
 
-  const venueId = guard.venueRoles.find((r) => r.role === "manager")?.venueId;
-  if (!venueId) fail("No managed venue was found for this account.");
+  const venueId =
+    readField(formData, "venueId") || guard.venueRoles.find((r) => r.role === "manager")?.venueId;
+  if (!venueId || !guard.venueRoles.some((r) => r.venueId === venueId && r.role === "manager")) {
+    fail("No managed venue was found for this account.");
+  }
 
   const name = readField(formData, "name");
   const city = readField(formData, "city");
   const postalCode = readField(formData, "postalCode").toUpperCase();
   const contactPhone = readField(formData, "contactPhone");
-  const capacityRaw = readField(formData, "capacity");
-  const capacity = parseInt(capacityRaw, 10);
+  const hangerCapacity = parseInt(readField(formData, "hangerCapacity") || "0", 10);
+  const bagCapacity = parseInt(readField(formData, "bagCapacity") || "0", 10);
 
-  if (!name) fail("Venue name is required.");
-  if (isNaN(capacity) || capacity < 1) fail("Capacity must be at least 1.");
+  if (!name) fail("Venue name is required.", venueId);
+  if (isNaN(hangerCapacity) || hangerCapacity < 0) fail("Hanger slot count must be 0 or more.", venueId);
+  if (isNaN(bagCapacity) || bagCapacity < 0) fail("Bag slot count must be 0 or more.", venueId);
+  if (hangerCapacity + bagCapacity < 1) fail("Total capacity must be at least 1 slot.", venueId);
   if (postalCode && !/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/.test(postalCode)) {
-    fail("Please enter a valid UK postcode.");
+    fail("Please enter a valid UK postcode.", venueId);
   }
 
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("venues")
     .update({
-      capacity,
+      bag_capacity: bagCapacity,
+      capacity: hangerCapacity + bagCapacity,
       city: city || null,
       contact_phone: contactPhone || null,
+      hanger_capacity: hangerCapacity,
       name,
       postal_code: postalCode || null,
     })
     .eq("id", venueId);
 
-  if (error) fail("Could not update venue details. Please try again.");
+  if (error) fail("Could not update venue details. Please try again.", venueId);
 
   revalidatePath("/venuesettings");
   revalidatePath("/venuedashboard");
-  finish("Venue details updated.");
+  finish("Venue details updated.", venueId);
 }
 
 // ─── Update my profile ─────────────────────────────────────────────────────────
@@ -226,16 +260,19 @@ export async function updateVenueExpiry(formData: FormData) {
     fail("Expiry settings are temporarily unavailable.");
   }
 
-  const venueId = guard.venueRoles.find((r) => r.role === "manager")?.venueId;
-  if (!venueId) fail("No managed venue was found for this account.");
+  const venueId =
+    readField(formData, "venueId") || guard.venueRoles.find((r) => r.role === "manager")?.venueId;
+  if (!venueId || !guard.venueRoles.some((r) => r.venueId === venueId && r.role === "manager")) {
+    fail("No managed venue was found for this account.");
+  }
 
   const enabled = readField(formData, "expiryEnabled") === "1";
   let ticketExpiryHours: number | null = null;
 
   if (enabled) {
     const raw = parseInt(readField(formData, "expiryHours"), 10);
-    if (isNaN(raw) || raw < 1) fail("Expiry duration must be at least 1 hour.");
-    if (raw > 720) fail("Expiry duration cannot exceed 720 hours (30 days).");
+    if (isNaN(raw) || raw < 1) fail("Expiry duration must be at least 1 hour.", venueId);
+    if (raw > 720) fail("Expiry duration cannot exceed 720 hours (30 days).", venueId);
     ticketExpiryHours = raw;
   }
 
@@ -245,10 +282,10 @@ export async function updateVenueExpiry(formData: FormData) {
     .update({ ticket_expiry_hours: ticketExpiryHours })
     .eq("id", venueId);
 
-  if (error) fail("Could not update expiry settings. Please try again.");
+  if (error) fail("Could not update expiry settings. Please try again.", venueId);
 
   revalidatePath("/venuesettings");
-  finish(enabled ? `Tickets now expire after ${ticketExpiryHours} hours.` : "Ticket expiry disabled.");
+  finish(enabled ? `Tickets now expire after ${ticketExpiryHours} hours.` : "Ticket expiry disabled.", venueId);
 }
 
 // ─── Change password ───────────────────────────────────────────────────────────

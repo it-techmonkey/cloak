@@ -119,6 +119,7 @@ function toItemView(row: TicketItemRow): TicketItemView {
     label: row.label,
     notes: row.notes,
     quantity: row.quantity,
+    storageLocation: row.storage_location ?? null,
   };
 }
 
@@ -222,39 +223,78 @@ export async function writeAcceptedScan({
 // A slot stays occupied while the ticket is active OR partially collected.
 const OCCUPYING_STATUSES: TicketRow["status"][] = ["active", "partially_collected"];
 
-export async function assignNextSlotNumber(
+// Format a raw internal slot (e.g. "h5", "b2") to the display label "H-5" / "B-2".
+export function formatSlot(raw: string): string {
+  if (raw.startsWith("h")) return `H-${raw.slice(1)}`;
+  if (raw.startsWith("b")) return `B-${raw.slice(1)}`;
+  return raw;
+}
+
+/**
+ * Assign `count` consecutive free slot numbers from the hanger or bag pool.
+ * Returns an array of display-formatted labels (e.g. ["H-1","H-2","H-3"]),
+ * or null if the pool has fewer than `count` free slots.
+ */
+export async function assignSlots(
   supabase: SupabaseAdmin,
   venueId: string,
-): Promise<string | null> {
+  slotType: "hanger" | "bag",
+  count: number,
+): Promise<string[] | null> {
   const { data: venue } = await supabase
     .from("venues")
-    .select("capacity")
+    .select("hanger_capacity, bag_capacity, capacity")
     .eq("id", venueId)
     .maybeSingle();
 
-  const capacity = venue?.capacity ?? 0;
-  if (capacity < 1) return null;
+  const prefix = slotType === "bag" ? "b" : "h";
+  const poolSize =
+    slotType === "bag"
+      ? (venue?.bag_capacity ?? 0)
+      : (venue?.hanger_capacity ?? venue?.capacity ?? 0);
 
+  if (poolSize < 1 || count < 1) return null;
+
+  // Collect occupied slot numbers from active/partial tickets AND individual items
+  // (items may have been added to already-active tickets).
+  // Fetch active/partial tickets for this venue to get their IDs + legacy slot summary
   const { data: openTickets } = await supabase
     .from("tickets")
-    .select("storage_location")
+    .select("id, storage_location")
     .eq("venue_id", venueId)
-    .in("status", OCCUPYING_STATUSES)
-    .not("storage_location", "is", null);
+    .in("status", OCCUPYING_STATUSES);
 
-  const usedNumbers = new Set(
-    (openTickets ?? [])
-      .map((t) => {
-        const loc = t.storage_location ?? "";
-        const raw = loc.startsWith("h") ? loc.slice(1) : loc;
-        return parseInt(raw, 10);
-      })
-      .filter((n) => !isNaN(n)),
-  );
+  const openTicketIds = (openTickets ?? []).map((t) => t.id);
 
-  for (let n = 1; n <= capacity; n++) {
-    if (!usedNumbers.has(n)) return `h${n}`;
+  // Fetch uncollected item rows for those tickets to find per-unit slots
+  const { data: openItems } =
+    openTicketIds.length > 0
+      ? await supabase
+          .from("ticket_items")
+          .select("storage_location")
+          .in("ticket_id", openTicketIds)
+          .not("storage_location", "is", null)
+          .is("collected_at", null)
+      : { data: [] as Array<{ storage_location: string | null }> };
+
+  const usedNumbers = new Set<number>();
+
+  // Parse the formatted label "H-5" / "B-2" → number 5 / 2
+  const labelPrefix = slotType === "bag" ? "B-" : "H-";
+  for (const item of openItems ?? []) {
+    const loc = item.storage_location ?? "";
+    if (!loc.startsWith(labelPrefix)) continue;
+    const n = parseInt(loc.slice(labelPrefix.length), 10);
+    if (!isNaN(n)) usedNumbers.add(n);
   }
 
-  return null;
+  const assigned: string[] = [];
+  for (let n = 1; n <= poolSize && assigned.length < count; n++) {
+    if (!usedNumbers.has(n)) {
+      usedNumbers.add(n); // reserve so next iteration doesn't re-pick it
+      assigned.push(formatSlot(`${prefix}${n}`));
+    }
+  }
+
+  return assigned.length === count ? assigned : null;
 }

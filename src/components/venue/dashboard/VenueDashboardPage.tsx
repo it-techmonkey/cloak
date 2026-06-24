@@ -8,18 +8,36 @@ import ApprovalBanner from "./ApprovalBanner";
 import LiveDashboardStats, { type LiveCounts } from "./LiveDashboardStats";
 import TodayTickets from "./TodayTickets";
 
-export default function VenueDashboardPage({ data }: { data: VenueDashboardData }) {
-  if (data.isManager) return <ManagerDashboard data={data} />;
+export default function VenueDashboardPage({
+  data,
+  selectedVenueId,
+}: {
+  data: VenueDashboardData;
+  selectedVenueId?: string;
+}) {
+  if (data.isManager) return <ManagerDashboard data={data} selectedVenueId={selectedVenueId} />;
   return <StaffDashboard data={data} />;
 }
 
-function buildInitialCounts(data: VenueDashboardData): LiveCounts {
+function buildInitialCounts(data: VenueDashboardData, selectedVenueId?: string): LiveCounts {
   const get = (label: string) =>
     Number(data.stats.find((s) => s.label === label)?.value ?? 0);
+
+  const selectedVenue =
+    selectedVenueId && data.venues.length > 1
+      ? data.venues.find((v) => v.id === selectedVenueId)
+      : undefined;
+
+  const venueSource = selectedVenue ?? data.venue;
+
   return {
-    capacity: data.venue?.capacity ?? 0,
+    bagCapacity: venueSource?.bagCapacity ?? 0,
+    bagStored: 0,
+    capacity: venueSource?.capacity ?? 0,
     collected: get("Collected"),
     forgotten: get("Forgotten"),
+    hangerCapacity: venueSource?.hangerCapacity ?? 0,
+    hangerStored: 0,
     pending: get("Pending"),
     stored: get("Stored"),
     today: get("Today"),
@@ -41,11 +59,7 @@ function StaffDashboard({ data }: { data: VenueDashboardData }) {
         isLocked ? null : <PrimaryLink href="/venuescanner">Open scanner</PrimaryLink>
       }
     >
-      <ApprovalBanner
-        approvalStatus={data.approvalStatus}
-        queryMessage={data.queryMessage}
-        venueId={data.venue?.id ?? null}
-      />
+      <ApprovalBanner />
       <LiveDashboardStats
         initialCounts={buildInitialCounts(data)}
         showCapacityBar={false}
@@ -58,8 +72,16 @@ function StaffDashboard({ data }: { data: VenueDashboardData }) {
 
 // ─── Manager view ───────────────────────────────────────────────────────────────
 
-function ManagerDashboard({ data }: { data: VenueDashboardData }) {
+function ManagerDashboard({
+  data,
+  selectedVenueId,
+}: {
+  data: VenueDashboardData;
+  selectedVenueId?: string;
+}) {
   const isLocked = data.approvalStatus !== "approved";
+  const activeVenueId = data.venue?.id ?? null;
+
   return (
     <PageShell
       activePath="/venuedashboard"
@@ -77,15 +99,30 @@ function ManagerDashboard({ data }: { data: VenueDashboardData }) {
         )
       }
     >
-      <ApprovalBanner
-        approvalStatus={data.approvalStatus}
-        queryMessage={data.queryMessage}
-        venueId={data.venue?.id ?? null}
-      />
+      {/* Venue switcher — only shown when managing multiple venues */}
+      {data.venues.length > 1 && (
+        <div className="flex gap-1 overflow-x-auto pb-px">
+          {data.venues.map((v) => (
+            <a
+              className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                v.id === (selectedVenueId ?? activeVenueId)
+                  ? "bg-foreground text-white"
+                  : "border border-line bg-white text-muted hover:border-foreground/20 hover:text-foreground"
+              }`}
+              href={`/venuedashboard?venueId=${v.id}`}
+              key={v.id}
+            >
+              {v.name}
+            </a>
+          ))}
+        </div>
+      )}
+
+      <ApprovalBanner />
       <LiveDashboardStats
-        initialCounts={buildInitialCounts(data)}
+        initialCounts={buildInitialCounts(data, selectedVenueId)}
         showCapacityBar={!isLocked}
-        venueId={data.venue?.id ?? null}
+        venueId={activeVenueId}
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
         <TodayTickets data={data} />

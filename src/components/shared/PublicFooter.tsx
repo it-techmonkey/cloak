@@ -36,7 +36,7 @@ export default function PublicFooter() {
             <div className="flex flex-col gap-3 text-sm text-white/55">
               <Link className="transition hover:text-white" href="/venues">Why Cloak</Link>
               <Link className="transition hover:text-white" href="/venuesignup">Register</Link>
-              <Link className="transition hover:text-white" href="/register-interest">Talk to us</Link>
+              <Link className="transition hover:text-white" href="/book-a-demo">Book a Demo</Link>
             </div>
           </div>
 
@@ -44,7 +44,7 @@ export default function PublicFooter() {
           <div>
             <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-white/35">Company</p>
             <div className="flex flex-col gap-3 text-sm text-white/55">
-              <Link className="transition hover:text-white" href="/register-interest">Contact</Link>
+              <Link className="transition hover:text-white" href="/contact-us">Contact</Link>
             </div>
           </div>
 
@@ -66,7 +66,7 @@ export default function PublicFooter() {
             {[
               { label: "Guests", href: "/customer-signup" },
               { label: "Venues", href: "/venues" },
-              { label: "Contact", href: "/register-interest" },
+              { label: "Contact", href: "/contact-us" },
               { label: "Privacy", href: "/privacy-policy" },
               { label: "Terms", href: "/terms" },
             ].map((l) => (

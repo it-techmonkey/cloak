@@ -15,16 +15,24 @@ function getParam(value: string | string[] | undefined) {
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const draft = await getDraftVenueSignup();
-  const venue: VenueSignupSummary | null = draft
-    ? {
-        billingPlan: draft.billingPlan ?? null,
-        billingStatus: draft.billingPlan ? "trialing" : "not_started",
-        city: draft.city,
-        contactEmail: draft.contactEmail,
-        name: draft.venueName,
-      }
-    : null;
-  const step = !venue ? 1 : venue.billingPlan ? 3 : 2;
+
+  // Step detection: no draft → 1 (plan), plan only → 2 (details), plan + venues → 3 (review)
+  let step: 1 | 2 | 3 = 1;
+  if (draft?.billingPlan) step = draft.venues.length > 0 ? 3 : 2;
+
+  const venue: VenueSignupSummary | null =
+    draft && step === 3
+      ? {
+          billingPlan: draft.billingPlan ?? null,
+          billingStatus: "trialing",
+          city: draft.venues[0]?.city ?? null,
+          companyName: draft.companyName,
+          contactEmail: draft.contactEmail,
+          contactName: draft.contactName,
+          name: draft.venues[0]?.venueName ?? "",
+          venueNames: draft.venues.map((v) => v.venueName),
+        }
+      : null;
 
   return <VenueSignupPage error={getParam(params.error)} step={step} venue={venue} />;
 }

@@ -2,6 +2,7 @@ import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/adm
 
 export type AdminVenueReview = {
   address: string | null;
+  bagCapacity: number;
   billingPlan: string | null;
   billingStatus: string;
   capacity: number;
@@ -9,6 +10,8 @@ export type AdminVenueReview = {
   contactEmail: string;
   contactPhone: string | null;
   createdAt: string;
+  extraDevices: number;
+  hangerCapacity: number;
   id: string;
   latitude: number | null;
   longitude: number | null;
@@ -55,9 +58,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   ] = await Promise.all([
     supabase
       .from("venues")
-      .select("id", { count: "exact", head: true })
-      .not("submitted_at", "is", null)
-      .eq("approval_status", "pending"),
+      .select("id", { count: "exact", head: true }),
     supabase
       .from("venues")
       .select("id", { count: "exact", head: true })
@@ -66,8 +67,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     supabase
       .from("venues")
       .select("id", { count: "exact", head: true })
-      .not("submitted_at", "is", null)
-      .eq("approval_status", "approved"),
+      .eq("active", true),
     supabase
       .from("tickets")
       .select("id", { count: "exact", head: true })
@@ -76,15 +76,14 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     supabase
       .from("venues")
       .select("id", { count: "exact", head: true })
-      .not("submitted_at", "is", null)
       .in("billing_status", ["incomplete", "past_due", "canceled", "unpaid"]),
     supabase
       .from("venues")
       .select(
-        "id, name, address, city, postal_code, contact_email, contact_phone, capacity, approval_status, billing_plan, billing_status, created_at, submitted_at, rejection_reason, latitude, longitude",
+        "id, name, address, city, postal_code, contact_email, contact_phone, capacity, hanger_capacity, bag_capacity, extra_devices, billing_plan, billing_status, created_at, latitude, longitude",
       )
-      .not("submitted_at", "is", null)
-      .order("submitted_at", { ascending: false })
+      .eq("active", true)
+      .order("created_at", { ascending: false })
       .limit(20),
   ]);
 
@@ -100,6 +99,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     venues:
       venueRows.data?.map((venue) => ({
         address: venue.address ?? null,
+        bagCapacity: venue.bag_capacity ?? 0,
         billingPlan: venue.billing_plan,
         billingStatus: venue.billing_status,
         capacity: venue.capacity,
@@ -107,14 +107,16 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         contactEmail: venue.contact_email,
         contactPhone: venue.contact_phone,
         createdAt: venue.created_at,
+        extraDevices: venue.extra_devices ?? 0,
+        hangerCapacity: venue.hanger_capacity ?? 0,
         id: venue.id,
         latitude: venue.latitude ?? null,
         longitude: venue.longitude ?? null,
         name: venue.name,
         postalCode: venue.postal_code ?? null,
-        queryMessage: venue.rejection_reason ?? null,
-        submittedAt: venue.submitted_at,
-        status: venue.approval_status,
+        queryMessage: null,
+        submittedAt: venue.created_at,
+        status: "approved" as const,
       })) ?? [],
   };
 }

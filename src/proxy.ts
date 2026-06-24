@@ -30,7 +30,11 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // Network unreachable — proceed without refreshing the session token.
+  }
 
   return response;
 }

@@ -29,11 +29,14 @@ export type VenueStaffMember = {
 
 export type VenueInfo = {
   address: string | null;
+  bagCapacity: number;
   billingPlan: string | null;
   capacity: number;
   city: string | null;
   contactEmail: string;
   contactPhone: string | null;
+  extraDevices: number;
+  hangerCapacity: number;
   id: string;
   name: string;
   postalCode: string | null;
@@ -61,6 +64,7 @@ export type VenueDashboardData = {
   stats: Array<{ helper?: string; label: string; value: string; tone: StatusTone }>;
   tickets: VenueTicketListItem[];
   venue: VenueInfo | null;
+  venues: VenueInfo[];
   venueLabel: string;
 };
 
@@ -130,6 +134,7 @@ function emptyVenueDashboardData(
     profile: null,
     tickets: [],
     venue: null,
+    venues: [],
     venueLabel: "No assigned venue",
   };
 }
@@ -183,7 +188,7 @@ function isManagerContext(context: AuthorizedContext) {
 async function getVenueMeta(supabase: SupabaseAdmin, venueIds: string[] | null) {
   let query = supabase
     .from("venues")
-    .select("id, name, capacity, address, city, postal_code, contact_email, contact_phone, billing_plan, slug, approval_status, rejection_reason, ticket_expiry_hours")
+    .select("id, name, capacity, hanger_capacity, bag_capacity, extra_devices, address, city, postal_code, contact_email, contact_phone, billing_plan, slug, ticket_expiry_hours")
     .order("name");
 
   if (venueIds) query = query.in("id", venueIds);
@@ -191,37 +196,41 @@ async function getVenueMeta(supabase: SupabaseAdmin, venueIds: string[] | null) 
   const { data } = await query;
   const venues = data ?? [];
   const capacity = venues.reduce((s, v) => s + v.capacity, 0);
+  const hangerCapacity = venues.reduce((s, v) => s + (v.hanger_capacity ?? 0), 0);
+  const bagCapacity = venues.reduce((s, v) => s + (v.bag_capacity ?? 0), 0);
   const first = venues[0] ?? null;
 
-  const approvalStatus = (first?.approval_status ?? "pending") as VenueApprovalStatus;
-  const queryMessage =
-    approvalStatus === "pending" ? (first?.rejection_reason ?? null) : null;
+  const venueInfoList: VenueInfo[] = venues.map((v) => ({
+    address: v.address,
+    bagCapacity: v.bag_capacity ?? 0,
+    billingPlan: v.billing_plan,
+    capacity: v.capacity,
+    city: v.city,
+    contactEmail: v.contact_email,
+    contactPhone: v.contact_phone,
+    extraDevices: v.extra_devices ?? 0,
+    hangerCapacity: v.hanger_capacity ?? 0,
+    id: v.id,
+    name: v.name,
+    postalCode: v.postal_code,
+    slug: v.slug,
+    ticketExpiryHours: v.ticket_expiry_hours ?? null,
+  }));
 
   return {
-    approvalStatus,
+    approvalStatus: "approved" as const,
+    bagCapacity,
     capacity,
+    hangerCapacity,
     label:
       venues.length === 0
         ? "No assigned venue"
         : venues.length === 1
           ? first!.name
           : `${venues.length} venues`,
-    queryMessage,
-    venue: first
-      ? ({
-          address: first.address,
-          billingPlan: first.billing_plan,
-          capacity: first.capacity,
-          city: first.city,
-          contactEmail: first.contact_email,
-          contactPhone: first.contact_phone,
-          id: first.id,
-          name: first.name,
-          postalCode: first.postal_code,
-          slug: first.slug,
-          ticketExpiryHours: first.ticket_expiry_hours ?? null,
-        } satisfies VenueInfo)
-      : null,
+    queryMessage: null,
+    venue: venueInfoList[0] ?? null,
+    venues: venueInfoList,
   };
 }
 
@@ -245,16 +254,25 @@ async function getStaffList(supabase: SupabaseAdmin, venueIds: string[] | null):
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-  return staffRows.map((s) => {
-    const profile = profileMap.get(s.profile_id!);
-    return {
+  // Deduplicate by profile_id — a person linked to multiple venues appears once.
+  // Prefer "manager" role over "staff" when the same person has both.
+  const seen = new Map<string, VenueStaffMember>();
+  for (const s of staffRows) {
+    const pid = s.profile_id!;
+    const profile = profileMap.get(pid);
+    const member: VenueStaffMember = {
       acceptedAt: s.accepted_at,
       email: profile?.email ?? s.invited_email ?? "",
       id: s.id,
       name: profile?.full_name ?? profile?.email ?? "Staff member",
       role: s.role as "staff" | "manager",
     };
-  });
+    const existing = seen.get(pid);
+    if (!existing || member.role === "manager") {
+      seen.set(pid, member);
+    }
+  }
+  return [...seen.values()];
 }
 
 function getTodayStart() {
@@ -397,6 +415,7 @@ export async function getVenueDashboardData({
         venueName: venueNames.get(t.venue_id) ?? venueMeta.label,
       })) ?? [],
     venue: venueMeta.venue,
+    venues: venueMeta.venues,
     venueLabel: venueMeta.label,
   };
 }

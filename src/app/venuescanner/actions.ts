@@ -27,13 +27,14 @@ function parseItems(formData: FormData): ParsedItem[] {
   const raw = readField(formData, "items");
   if (!raw) return [];
   try {
-    const parsed = JSON.parse(raw) as Array<{ label?: unknown; quantity?: unknown }>;
+    const parsed = JSON.parse(raw) as Array<{ label?: unknown; quantity?: unknown; pool?: unknown }>;
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .map((i) => ({
-        label: String(i.label ?? "").trim(),
-        quantity: Number(i.quantity ?? 1),
-      }))
+      .map((i) => {
+        const pool: "hanger" | "bag" | undefined =
+          i.pool === "hanger" ? "hanger" : i.pool === "bag" ? "bag" : undefined;
+        return { label: String(i.label ?? "").trim(), pool, quantity: Number(i.quantity ?? 1) };
+      })
       .filter((i) => i.label.length > 0);
   } catch {
     return [];
@@ -66,11 +67,19 @@ export async function handleScannerAction(
     const context = await getScannerContext();
     if (!context) return NO_CONTEXT;
 
+    const venueId = readField(formData, "venueId") || undefined;
+
+    // Validate that the submitted venueId (if any) is in the user's venue roles.
+    if (venueId && !context.guard.venueRoles.some((r) => r.venueId === venueId)) {
+      return { message: "You do not have access to the selected venue.", status: "error" };
+    }
+
     if (action === "activate") {
       return performActivation(context, {
         items: parseItems(formData),
         notes: readField(formData, "notes"),
         ticketId: readField(formData, "ticketId"),
+        venueId,
       });
     }
 
@@ -95,7 +104,7 @@ export async function handleScannerAction(
       return { message: "Enter a QR link, QR token, or fallback code.", status: "error" };
     }
     const ticket = await lookupTicketByInput(context.supabase, lookupValue);
-    return performLookup(context, lookupValue, ticket);
+    return performLookup(context, lookupValue, ticket, venueId);
   } catch {
     return {
       message: "The scanner could not complete this request. Please refresh and try again.",

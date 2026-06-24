@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -7,28 +7,17 @@ const STYLE_URL = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAP
 
 type Coords = { lat: number; lng: number };
 
-async function geocodeAddress(query: string): Promise<Coords | null> {
-  if (!query.trim()) return null;
-  try {
-    const res = await fetch(
-      `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${MAPTILER_KEY}&country=gb&limit=1`,
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const center = data?.features?.[0]?.center;
-    if (Array.isArray(center) && center.length === 2) {
-      return { lng: Number(center[0]), lat: Number(center[1]) };
-    }
-  } catch {
-    // silent
-  }
-  return null;
-}
-
 export default function LocationPicker({
-  address,
+  latName = "latitude",
+  lngName = "longitude",
+  externalCoords,
+  onCoordsChange,
 }: {
-  address: string; // filled address string — used to auto-center on mount
+  latName?: string;
+  lngName?: string;
+  /** Set this to fly the pin to a specific position from outside (e.g. after address selection) */
+  externalCoords?: Coords | null;
+  onCoordsChange?: (coords: Coords) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -36,6 +25,11 @@ export default function LocationPicker({
   const [coords, setCoords] = useState<Coords | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [locating, setLocating] = useState(false);
+
+  function commitCoords(c: Coords) {
+    setCoords(c);
+    onCoordsChange?.(c);
+  }
 
   // Init map
   useEffect(() => {
@@ -59,11 +53,10 @@ export default function LocationPicker({
         if (destroyed) return;
         setMapReady(true);
 
-        // Click to place/move pin
         map.on("click", (e) => {
-          const { lng, lat } = e.lngLat;
-          setCoords({ lng, lat });
-          placeMarker(ml, map, { lng, lat });
+          const c = { lng: e.lngLat.lng, lat: e.lngLat.lat };
+          commitCoords(c);
+          placeMarker(ml, map, c);
         });
       });
     });
@@ -75,22 +68,19 @@ export default function LocationPicker({
       mapRef.current?.remove();
       mapRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-geocode address and fly to it when map is ready
+  // Fly to externalCoords when they change (address selected from autocomplete)
   useEffect(() => {
-    if (!mapReady || !address.trim()) return;
-    setLocating(true);
-    geocodeAddress(address).then((c) => {
-      setLocating(false);
-      if (!c || !mapRef.current) return;
-      setCoords(c);
-      mapRef.current.flyTo({ center: [c.lng, c.lat], zoom: 16, duration: 1000 });
-      import("maplibre-gl").then((ml) => {
-        if (mapRef.current) placeMarker(ml, mapRef.current, c);
-      });
+    if (!mapReady || !externalCoords || (!externalCoords.lat && !externalCoords.lng)) return;
+    const c = externalCoords;
+    setCoords(c);
+    mapRef.current?.flyTo({ center: [c.lng, c.lat], zoom: 17, duration: 800 });
+    import("maplibre-gl").then((ml) => {
+      if (mapRef.current) placeMarker(ml, mapRef.current, c);
     });
-  }, [mapReady, address]);
+  }, [mapReady, externalCoords]);
 
   function placeMarker(ml: typeof import("maplibre-gl"), map: import("maplibre-gl").Map, c: Coords) {
     markerRef.current?.remove();
@@ -102,14 +92,13 @@ export default function LocationPicker({
         <circle cx="16" cy="14" r="5" fill="white"/>
       </svg>`;
 
-    // anchor:"bottom" makes MapLibre pin the tip (bottom of element) to the coordinate
     const marker = new ml.Marker({ element: el, draggable: true, anchor: "bottom" })
       .setLngLat([c.lng, c.lat])
       .addTo(map);
 
     marker.on("dragend", () => {
       const pos = marker.getLngLat();
-      setCoords({ lng: pos.lng, lat: pos.lat });
+      commitCoords({ lng: pos.lng, lat: pos.lat });
     });
 
     markerRef.current = marker;
@@ -122,7 +111,7 @@ export default function LocationPicker({
       (pos) => {
         setLocating(false);
         const c = { lng: pos.coords.longitude, lat: pos.coords.latitude };
-        setCoords(c);
+        commitCoords(c);
         mapRef.current!.flyTo({ center: [c.lng, c.lat], zoom: 17, duration: 800 });
         import("maplibre-gl").then((ml) => {
           if (mapRef.current) placeMarker(ml, mapRef.current, c);
@@ -140,7 +129,6 @@ export default function LocationPicker({
       </p>
 
       <div className="rounded-xl border border-line">
-        {/* Map */}
         <div className="relative h-56 overflow-hidden rounded-t-xl">
           {!mapReady && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-50 text-sm text-muted">
@@ -156,7 +144,6 @@ export default function LocationPicker({
           `}</style>
           <div className="h-full w-full" ref={containerRef} />
 
-          {/* Locate me button */}
           {mapReady && (
             <button
               className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition hover:bg-zinc-50 disabled:opacity-50"
@@ -177,14 +164,13 @@ export default function LocationPicker({
           )}
         </div>
 
-        {/* Coordinates readout */}
         <div className="flex items-center justify-between border-t border-line bg-zinc-50 px-4 py-2.5">
           {coords ? (
             <p className="font-mono text-xs text-muted">
               {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
             </p>
           ) : (
-            <p className="text-xs text-muted">No pin placed — click map to set location</p>
+            <p className="text-xs text-muted">No pin placed — click map or select an address</p>
           )}
           {coords && (
             <button
@@ -198,10 +184,8 @@ export default function LocationPicker({
         </div>
       </div>
 
-      {/* Hidden inputs submitted with the form */}
-      <input name="latitude" type="hidden" value={coords?.lat ?? ""} />
-      <input name="longitude" type="hidden" value={coords?.lng ?? ""} />
+      <input name={latName} type="hidden" value={coords?.lat ?? ""} />
+      <input name={lngName} type="hidden" value={coords?.lng ?? ""} />
     </div>
   );
 }
-

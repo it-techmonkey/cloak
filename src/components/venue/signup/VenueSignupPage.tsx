@@ -1,12 +1,13 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import BrandingPreview from "./BrandingPreview";
 import PlanPreview from "./PlanPreview";
 import VenueDetailsPreview from "./VenueDetailsPreview";
+import { clearPlanFromDraft } from "@/app/venuesignup/actions";
 import type { VenueSignupSummary } from "@/lib/venues";
 
 const STEPS = [
+  { label: "Choose plan" },
   { label: "Venue details" },
-  { label: "Plan" },
   { label: "Review & submit" },
 ];
 
@@ -64,15 +65,15 @@ export default function VenueSignupPage({
   venue?: VenueSignupSummary | null;
 }) {
   const titles = {
-    1: "Register your venue",
-    2: "Select your plan",
+    1: "Choose your plan",
+    2: "Venue details",
     3: "Review & submit",
   };
 
   const subtitles = {
-    1: "Start with the basics — takes under two minutes.",
-    2: "Choose the plan that fits your operation.",
-    3: "Confirm everything before we review your application.",
+    1: "Pick the plan that fits your operation. You can change later.",
+    2: "Tell us about your venue and contact details.",
+    3: "Confirm everything and create your manager account.",
   };
 
   return (
@@ -81,35 +82,63 @@ export default function VenueSignupPage({
       <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link className="flex items-center gap-2.5" href="/">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-foreground text-xs font-bold text-white">CL</span>
+            <img alt="Cloak" className="h-8 w-8 rounded-lg object-cover" src="/images/cloak-logo.png" />
             <span className="text-sm font-semibold text-foreground">Cloak</span>
           </Link>
-          <Link
-            className="flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-foreground"
-            href="/venues"
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Back
-          </Link>
+          {/* Back navigation — context-aware per step */}
+          {step === 1 && (
+            <Link
+              className="flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-foreground"
+              href="/"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Back
+            </Link>
+          )}
+          {step === 2 && (
+            <form action={clearPlanFromDraft}>
+              <button
+                className="flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-foreground"
+                type="submit"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Back to plan
+              </button>
+            </form>
+          )}
+          {step === 3 && (
+            <form action={clearPlanFromDraft}>
+              <input name="keepPlan" type="hidden" value="1" />
+              <button
+                className="flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-foreground"
+                type="submit"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Back to details
+              </button>
+            </form>
+          )}
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6">
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
         <SignupStepper step={step} />
 
         <div className="flex flex-col items-center text-center">
-          <div className="grid h-12 w-12 place-items-center rounded-xl bg-foreground text-sm font-bold text-white shadow">
-            CL
-          </div>
+          <img alt="Cloak" className="h-12 w-12 rounded-xl object-cover shadow" src="/images/cloak-logo.png" />
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">{titles[step]}</h1>
           <p className="mt-2 max-w-sm text-sm leading-6 text-muted">{subtitles[step]}</p>
         </div>
 
-        <div className="mx-auto w-full max-w-4xl">
-          {step === 1 ? <VenueDetailsPreview error={error} /> : null}
-          {step === 2 ? <PlanPreview error={error} venue={venue ?? null} /> : null}
+        <div className="w-full">
+          {step === 1 ? <PlanPreview error={error} /> : null}
+          {step === 2 ? <VenueDetailsPreview error={error} /> : null}
           {step === 3 ? <BrandingPreview error={error} venue={venue ?? null} /> : null}
         </div>
       </main>

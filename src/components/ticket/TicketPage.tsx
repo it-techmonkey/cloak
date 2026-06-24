@@ -6,17 +6,20 @@ import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import TicketDetails from "./TicketDetails";
 import { useAuth } from "@/components/auth/AuthProvider";
+import type { PublicTicketItem } from "@/lib/tickets";
 import type { WalletConfig } from "@/lib/wallet";
 
 const VenueLocationMap = dynamic(() => import("./VenueLocationMap"), { ssr: false });
 
 export type TicketView = {
+  dbId: string;
   email: string;
   expiresAt: string;
   guestName: string;
   itemCount: number;
   itemDescription: string | null;
   itemType: string | null;
+  items: PublicTicketItem[];
   mobile: string;
   qrValue: string;
   status?: "pending_activation" | "active" | "partially_collected" | "collected" | "cancelled" | "expired";
@@ -105,15 +108,35 @@ export default function TicketPage({
 
   useEffect(() => {
     const supabase = createClient();
+
+    async function refreshItems() {
+      const { data } = await supabase
+        .from("ticket_items")
+        .select("id, label, storage_location, collected_at")
+        .eq("ticket_id", initial.dbId)
+        .order("added_at", { ascending: true });
+      if (data) {
+        setTicket((prev) => ({
+          ...prev,
+          items: data.map((r) => ({
+            id: r.id,
+            label: r.label,
+            storageLocation: r.storage_location ?? null,
+            collected: r.collected_at !== null,
+          })),
+        }));
+      }
+    }
+
     const channel = supabase
-      .channel(`ticket:${initial.ticketId}`)
+      .channel(`ticket:${initial.dbId}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "tickets",
-          filter: `id=eq.${initial.ticketId}`,
+          filter: `id=eq.${initial.dbId}`,
         },
         (payload) => {
           const row = payload.new as Record<string, unknown>;
@@ -125,14 +148,25 @@ export default function TicketPage({
             itemCount: typeof row.item_count === "number" ? row.item_count : prev.itemCount,
             itemDescription: (row.item_description as string | null) ?? null,
           }));
+          void refreshItems();
         },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "ticket_items",
+          filter: `ticket_id=eq.${initial.dbId}`,
+        },
+        () => { void refreshItems(); },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [initial.ticketId]);
+  }, [initial.dbId]);
 
   const { user, openAuthModal } = useAuth();
 
@@ -206,34 +240,30 @@ export default function TicketPage({
           </div>
         )}
 
-        {/* Cloak number + items — when active or collected */}
-        {(isActive || isCollected) && ticket.itemType ? (
-          <div className="rounded-xl border border-line bg-panel p-4">
-            {ticket.storageLocation ? (
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  {isCollected ? "Was stored at" : "Cloak number"}
-                </p>
-                <span className="rounded-lg bg-foreground px-3 py-1 font-mono text-sm font-bold text-white">
-                  {ticket.storageLocation}
-                </span>
-              </div>
-            ) : null}
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+        {/* Items list — when active, partially collected, or collected */}
+        {(isActive || ticket.status === "partially_collected" || isCollected) && (ticket.items.length > 0 || ticket.itemType) ? (
+          <div className="overflow-hidden rounded-xl border border-line bg-panel">
+            <p className="border-b border-line px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted">
               {isCollected ? "Items returned" : "Stored items"}
             </p>
-            <div className="mt-2 space-y-1.5">
-              {parseItemLines(ticket.itemDescription, ticket.itemType, ticket.itemCount).map(
-                (line, i) => (
-                  <div className="flex items-center justify-between" key={i}>
-                    <span className="text-sm text-foreground">{line.label}</span>
-                    <span className="tabular-nums text-sm text-muted">×{line.count}</span>
-                  </div>
-                ),
-              )}
+            <div className="divide-y divide-line">
+              {ticket.items.length > 0
+                ? ticket.items.map((item) => (
+                    <ItemRow
+                      collected={item.collected}
+                      key={item.id}
+                      label={item.label}
+                      slot={item.storageLocation}
+                    />
+                  ))
+                : parseItemLines(ticket.itemDescription, ticket.itemType ?? "", ticket.itemCount).map(
+                    (line, i) => (
+                      <ItemRow collected={isCollected} key={i} label={line.label} slot={null} />
+                    ),
+                  )}
             </div>
             {extractNotes(ticket.itemDescription) ? (
-              <p className="mt-3 border-t border-line pt-3 text-xs leading-5 text-muted">
+              <p className="border-t border-line px-4 py-3 text-xs leading-5 text-muted">
                 {extractNotes(ticket.itemDescription)}
               </p>
             ) : null}
@@ -329,6 +359,32 @@ export default function TicketPage({
         ) : null}
 
       </main>
+    </div>
+  );
+}
+
+function ItemRow({
+  slot,
+  label,
+  collected,
+}: {
+  slot: string | null;
+  label: string;
+  collected: boolean;
+}) {
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 ${collected ? "opacity-50" : ""}`}>
+      {slot ? (
+        <span className="shrink-0 rounded-lg bg-foreground px-2.5 py-1 font-mono text-xs font-bold text-white">
+          {slot}
+        </span>
+      ) : (
+        <span className="shrink-0 w-7" />
+      )}
+      <span className={`flex-1 text-sm text-foreground ${collected ? "line-through" : ""}`}>
+        {label}
+      </span>
+      {collected && <span className="shrink-0 text-xs text-emerald-600">Returned</span>}
     </div>
   );
 }

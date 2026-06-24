@@ -5,16 +5,25 @@ import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/adm
 import { sendEmail, getSiteUrl } from "@/lib/email";
 import { LeadNotificationEmail, LeadAutoReplyEmail } from "@/lib/emails/LeadReceivedEmail";
 
-export async function submitLeadForm(formData: FormData) {
+export async function submitDemoRequest(formData: FormData) {
   const venueName = String(formData.get("venueName") ?? "").trim();
   const contactName = String(formData.get("contactName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const phone = String(formData.get("phone") ?? "").trim();
   const capacity = String(formData.get("capacity") ?? "").trim();
+  const preferredDate = String(formData.get("preferredDate") ?? "").trim();
+  const preferredTime = String(formData.get("preferredTime") ?? "").trim();
   const message = String(formData.get("message") ?? "").trim();
 
   if (!venueName || !contactName || !email) {
-    redirect("/register-interest?error=Please+fill+in+all+required+fields.");
+    redirect("/book-a-demo?error=Please+fill+in+all+required+fields.");
   }
+
+  const demoDetails = preferredDate
+    ? `Demo date: ${preferredDate}${preferredTime ? ` at ${preferredTime}` : ""}`
+    : "";
+
+  const fullMessage = [demoDetails, message].filter(Boolean).join("\n");
 
   if (isSupabaseAdminConfigured()) {
     const supabase = createAdminClient();
@@ -22,7 +31,7 @@ export async function submitLeadForm(formData: FormData) {
       capacity_estimate: capacity || null,
       contact_email: email,
       contact_name: contactName,
-      message: message || null,
+      message: fullMessage || null,
       venue_name: venueName,
     });
   }
@@ -32,23 +41,23 @@ export async function submitLeadForm(formData: FormData) {
     adminEmail
       ? sendEmail({
           to: adminEmail,
-          subject: `New enquiry: ${venueName}`,
+          subject: `Demo request: ${venueName}`,
           react: LeadNotificationEmail({
             capacity,
             contactEmail: email,
             contactName,
             dashboardUrl: `${getSiteUrl()}/masterdashboard`,
-            message,
+            message: fullMessage,
             venueName,
           }),
         })
       : Promise.resolve(),
     sendEmail({
       to: email,
-      subject: "We've received your Cloak enquiry",
+      subject: "Your Cloak demo is booked",
       react: LeadAutoReplyEmail({ contactName, venueName }),
     }),
   ]);
 
-  redirect("/register-interest?success=1");
+  redirect("/book-a-demo?success=1");
 }

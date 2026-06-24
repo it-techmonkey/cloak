@@ -5,7 +5,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import type { ScannerState } from "@/app/venuescanner/types";
 import {
   type ScannerContext,
-  assignNextSlotNumber,
+  assignSlots,
   canAccessVenue,
   getVenueName,
   isPendingTicketExpired,
@@ -22,7 +22,19 @@ import {
 
 type TicketRow = Database["public"]["Tables"]["tickets"]["Row"];
 
-export type ParsedItem = { label: string; quantity: number };
+export type ParsedItem = { label: string; quantity: number; pool?: "hanger" | "bag" };
+
+// Items that go on a shelf/bag area rather than a hanger rail.
+// Everything not in this set defaults to the hanger pool.
+const BAG_POOL_ITEMS = new Set([
+  "bag", "backpack", "luggage", "suitcase", "rucksack",
+  "helmet", "electronics", "sports equipment", "package",
+]);
+
+function classifySlotType(item: ParsedItem): "hanger" | "bag" {
+  if (item.pool) return item.pool;
+  return BAG_POOL_ITEMS.has(item.label.toLowerCase().trim()) ? "bag" : "hanger";
+}
 
 function revalidateSurfaces() {
   revalidatePath("/venuescanner");
@@ -74,9 +86,20 @@ export async function performLookup(
   context: ScannerContext,
   lookupValue: string,
   ticket: TicketRow | null,
+  venueId?: string,
 ): Promise<ScannerState> {
   if (!ticket) {
     return { message: "Ticket was not found. Check the code and try again.", status: "error" };
+  }
+
+  // If a specific venueId is selected, enforce that the ticket belongs to it.
+  if (venueId && ticket.venue_id !== venueId) {
+    await writeRejectedScan({
+      reason: "Ticket belongs to a different venue.",
+      scanner: context.guard,
+      ticket,
+    });
+    return { message: "This ticket is not valid for the selected venue.", status: "error" };
   }
 
   if (!canAccessVenue(context.guard, ticket.venue_id)) {
@@ -123,12 +146,17 @@ export async function performActivation(
     ticketId,
     items,
     notes,
-  }: { ticketId: string; items: ParsedItem[]; notes: string },
+    venueId,
+  }: { ticketId: string; items: ParsedItem[]; notes: string; venueId?: string },
 ): Promise<ScannerState> {
   const ticket = await loadTicketById(context.supabase, ticketId);
 
   if (!ticket || !canAccessVenue(context.guard, ticket.venue_id)) {
     return { message: "Ticket could not be verified for this venue.", status: "error" };
+  }
+
+  if (venueId && ticket.venue_id !== venueId) {
+    return { message: "Ticket could not be verified for the selected venue.", status: "error" };
   }
 
   if (ticket.status !== "pending_activation") {
@@ -156,15 +184,47 @@ export async function performActivation(
     };
   }
 
-  const slotNumber = await assignNextSlotNumber(context.supabase, ticket.venue_id);
-  if (!slotNumber) {
+  // Expand each item line by quantity — one physical unit per row.
+  // e.g. { label: "Jacket", quantity: 3 } → 3 rows each needing a slot.
+  type UnitItem = { label: string; slotType: "hanger" | "bag" };
+  const units: UnitItem[] = validItems.flatMap((i) =>
+    Array.from({ length: i.quantity }, () => ({
+      label: i.label,
+      slotType: classifySlotType(i),
+    })),
+  );
+
+  const hangerCount = units.filter((u) => u.slotType === "hanger").length;
+  const bagCount = units.filter((u) => u.slotType === "bag").length;
+
+  // Assign all required slots up-front so we can fail atomically before writing anything.
+  const [hangerSlots, bagSlots] = await Promise.all([
+    hangerCount > 0
+      ? assignSlots(context.supabase, ticket.venue_id, "hanger", hangerCount)
+      : Promise.resolve([] as string[]),
+    bagCount > 0
+      ? assignSlots(context.supabase, ticket.venue_id, "bag", bagCount)
+      : Promise.resolve([] as string[]),
+  ]);
+
+  if ((hangerCount > 0 && !hangerSlots) || (bagCount > 0 && !bagSlots)) {
     return {
-      message: "All cloakroom slots are currently occupied. Please complete a checkout first.",
+      message: "Not enough free cloakroom slots. Please complete a checkout first.",
       status: "error",
     };
   }
 
-  const totalCount = validItems.reduce((sum, i) => sum + i.quantity, 0);
+  // Pair each unit with its assigned slot label.
+  const hQueue = [...(hangerSlots ?? [])];
+  const bQueue = [...(bagSlots ?? [])];
+  const assignedUnits = units.map((u) => ({
+    ...u,
+    slot: u.slotType === "bag" ? bQueue.shift()! : hQueue.shift()!,
+  }));
+
+  const allSlots = assignedUnits.map((u) => u.slot);
+  const slotSummary = allSlots.join(", ");
+  const totalCount = units.length;
   const summary = validItems.map((i) => `${i.quantity}× ${i.label}`).join(", ");
   const description = notes.trim() ? `${summary}\n${notes.trim()}` : summary;
   const activatedAt = new Date().toISOString();
@@ -178,7 +238,7 @@ export async function performActivation(
       item_description: description,
       item_type: validItems[0].label,
       status: "active",
-      storage_location: slotNumber,
+      storage_location: slotSummary,
     })
     .eq("id", ticket.id)
     .eq("status", "pending_activation")
@@ -189,13 +249,14 @@ export async function performActivation(
     return { message: "Ticket activation failed. Please refresh and try again.", status: "error" };
   }
 
-  // Write one row per item line as the source of truth for partial returns.
+  // One row per physical unit with its own slot label.
   await context.supabase.from("ticket_items").insert(
-    validItems.map((i) => ({
+    assignedUnits.map((u) => ({
       added_by: context.guard.userId,
-      label: i.label,
+      label: u.label,
       notes: notes.trim() || null,
-      quantity: i.quantity,
+      quantity: 1,
+      storage_location: u.slot,
       ticket_id: ticket.id,
     })),
   );
@@ -210,12 +271,12 @@ export async function performActivation(
     phone: updatedTicket.guest_phone,
     guestName: updatedTicket.guest_name,
     itemCount: totalCount,
-    slotNumber,
+    slotNumber: slotSummary,
     venueName,
   });
 
   return {
-    message: `Ticket activated. Cloak number ${slotNumber} assigned.`,
+    message: `Ticket activated. Slots assigned: ${slotSummary}.`,
     status: "success",
     ticket: toScannerTicket(updatedTicket, venueName, freshItems),
   };
@@ -246,12 +307,47 @@ export async function performAddItems(
     return ticketReadyState(context, ticket);
   }
 
-  await context.supabase.from("ticket_items").insert(
-    validItems.map((i) => ({
-      added_by: context.guard.userId,
+  type UnitItem = { label: string; slotType: "hanger" | "bag" };
+  const units: UnitItem[] = validItems.flatMap((i) =>
+    Array.from({ length: i.quantity }, () => ({
       label: i.label,
+      slotType: classifySlotType(i),
+    })),
+  );
+
+  const hangerCount = units.filter((u) => u.slotType === "hanger").length;
+  const bagCount = units.filter((u) => u.slotType === "bag").length;
+
+  const [hangerSlots, bagSlots] = await Promise.all([
+    hangerCount > 0
+      ? assignSlots(context.supabase, ticket.venue_id, "hanger", hangerCount)
+      : Promise.resolve([] as string[]),
+    bagCount > 0
+      ? assignSlots(context.supabase, ticket.venue_id, "bag", bagCount)
+      : Promise.resolve([] as string[]),
+  ]);
+
+  if ((hangerCount > 0 && !hangerSlots) || (bagCount > 0 && !bagSlots)) {
+    return {
+      message: "Not enough free cloakroom slots. Please complete a checkout first.",
+      status: "error",
+    };
+  }
+
+  const hQueue = [...(hangerSlots ?? [])];
+  const bQueue = [...(bagSlots ?? [])];
+  const assignedUnits = units.map((u) => ({
+    ...u,
+    slot: u.slotType === "bag" ? bQueue.shift()! : hQueue.shift()!,
+  }));
+
+  await context.supabase.from("ticket_items").insert(
+    assignedUnits.map((u) => ({
+      added_by: context.guard.userId,
+      label: u.label,
       notes: notes.trim() || null,
-      quantity: i.quantity,
+      quantity: 1,
+      storage_location: u.slot,
       ticket_id: ticket.id,
     })),
   );
@@ -260,7 +356,13 @@ export async function performAddItems(
   // the denormalized counters on the ticket row.
   const freshItems = await loadTicketItems(context.supabase, ticket.id);
   const openItems = freshItems.filter((i) => i.collected_at === null);
-  const totalOpen = openItems.reduce((sum, i) => sum + i.quantity, 0);
+  const totalOpen = openItems.length;
+
+  // Rebuild the ticket-level slot summary from all open item rows.
+  const allOpenSlots = openItems
+    .map((i) => i.storage_location)
+    .filter(Boolean)
+    .join(", ");
 
   const { data: updatedTicket } = await context.supabase
     .from("tickets")
@@ -268,6 +370,7 @@ export async function performAddItems(
       item_count: totalOpen,
       item_type: openItems[0]?.label ?? ticket.item_type,
       status: "active",
+      storage_location: allOpenSlots || ticket.storage_location,
     })
     .eq("id", ticket.id)
     .select("*")
@@ -277,9 +380,10 @@ export async function performAddItems(
   revalidateSurfaces();
 
   const venueName = await getVenueName(context.supabase, ticket.venue_id);
-  const added = validItems.reduce((s, i) => s + i.quantity, 0);
+  const newSlots = assignedUnits.map((u) => u.slot).join(", ");
+  const added = assignedUnits.length;
   return {
-    message: `${added} item${added === 1 ? "" : "s"} added to this ticket.`,
+    message: `${added} item${added === 1 ? "" : "s"} added. Slots: ${newSlots}.`,
     status: "success",
     ticket: toScannerTicket(updatedTicket ?? ticket, venueName, freshItems),
   };

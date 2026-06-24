@@ -101,6 +101,7 @@ function ExpiryToggleSection({ venue }: { venue: VenueInfo | null }) {
   return (
     <Panel title="Ticket expiry" description="Control how long an unactivated guest pass remains valid.">
       <form action={updateVenueExpiry} className="grid gap-4">
+        <input name="venueId" type="hidden" value={venue?.id ?? ""} />
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-foreground">Enable expiry</p>
@@ -158,6 +159,7 @@ export default function VenueSettingsPage({
   profile,
   staff,
   venue,
+  venues,
 }: {
   checkInUrl: string | null;
   error?: string;
@@ -165,6 +167,7 @@ export default function VenueSettingsPage({
   profile: UserProfile | null;
   staff: VenueStaffMember[];
   venue: VenueInfo | null;
+  venues: VenueInfo[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("venue");
 
@@ -177,6 +180,25 @@ export default function VenueSettingsPage({
     >
       {message ? <SectionAlert type="success" message={message} /> : null}
       {error ? <SectionAlert type="error" message={error} /> : null}
+
+      {/* Venue switcher — only shown when managing multiple venues */}
+      {venues.length > 1 && (
+        <div className="flex gap-1 overflow-x-auto pb-px">
+          {venues.map((v) => (
+            <a
+              className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                v.id === venue?.id
+                  ? "bg-foreground text-white"
+                  : "border border-line bg-white text-muted hover:border-foreground/20 hover:text-foreground"
+              }`}
+              href={`/venuesettings?venueId=${v.id}`}
+              key={v.id}
+            >
+              {v.name}
+            </a>
+          ))}
+        </div>
+      )}
 
       {/* Tab nav */}
       <div className="flex gap-1 overflow-x-auto border-b border-line pb-px">
@@ -201,19 +223,32 @@ export default function VenueSettingsPage({
         <>
           <Panel title="Venue details" description="Update your venue information.">
             <form action={updateVenueDetails} className="grid gap-4">
+              <input name="venueId" type="hidden" value={venue?.id ?? ""} />
               <div className="grid gap-4 sm:grid-cols-2">
-                <label>
+                <label className="sm:col-span-2">
                   <Label>Venue name</Label>
                   <input className={input} defaultValue={venue?.name ?? ""} name="name" placeholder="Venue name" required />
                 </label>
                 <label>
-                  <Label>Capacity (total cloak slots)</Label>
+                  <Label>Hanger slots</Label>
                   <input
                     className={input}
-                    defaultValue={venue?.capacity ?? ""}
-                    min={1}
-                    name="capacity"
+                    defaultValue={venue?.hangerCapacity ?? 0}
+                    min={0}
+                    name="hangerCapacity"
                     placeholder="e.g. 50"
+                    required
+                    type="number"
+                  />
+                </label>
+                <label>
+                  <Label>Bag slots</Label>
+                  <input
+                    className={input}
+                    defaultValue={venue?.bagCapacity ?? 0}
+                    min={0}
+                    name="bagCapacity"
+                    placeholder="e.g. 20"
                     required
                     type="number"
                   />
@@ -265,6 +300,29 @@ export default function VenueSettingsPage({
       {activeTab === "staff" && (
         <>
           <Panel title="Staff accounts" description="Manage who can access the scanner and ticket dashboard.">
+            {/* Device usage indicator */}
+            {venue && (() => {
+              const totalDevices = 1 + (venue.extraDevices ?? 0);
+              const usedDevices = staff.filter((m) => m.role !== "manager").length + 1;
+              const pct = Math.min(Math.round((usedDevices / totalDevices) * 100), 100);
+              const color = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
+              return (
+                <div className="mb-4 rounded-lg border border-line bg-zinc-50 px-4 py-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">Scanner devices</span>
+                    <span className="tabular-nums text-muted">{usedDevices} / {totalDevices} used</span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200">
+                    <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted">
+                    {totalDevices - usedDevices > 0
+                      ? `${totalDevices - usedDevices} device slot${totalDevices - usedDevices === 1 ? "" : "s"} available`
+                      : "Device limit reached — remove a staff account to add another."}
+                  </p>
+                </div>
+              );
+            })()}
             {staff.length === 0 ? (
               <div className="rounded-lg border border-dashed border-line bg-zinc-50 px-4 py-6 text-center text-sm text-muted">
                 No staff accounts yet. Add one below.
@@ -297,6 +355,7 @@ export default function VenueSettingsPage({
                           {member.role !== "manager" && (
                             <form action={removeStaffMember}>
                               <input name="staffId" type="hidden" value={member.id} />
+                              <input name="venueId" type="hidden" value={venue?.id ?? ""} />
                               <button
                                 className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
                                 type="submit"
@@ -314,33 +373,48 @@ export default function VenueSettingsPage({
             )}
           </Panel>
 
-          <Panel title="Add staff account" description="Create a login for a counter staff member.">
-            <form action={createVenueStaffAccount} className="grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label>
-                  <Label>Full name</Label>
-                  <input className={input} name="fullName" placeholder="Staff member name" required />
-                </label>
-                <label>
-                  <Label>Email</Label>
-                  <input className={input} name="email" placeholder="staff@example.com" required type="email" />
-                </label>
-                <label className="sm:col-span-2">
-                  <Label>Temporary password</Label>
-                  <input
-                    autoComplete="new-password"
-                    className={input}
-                    minLength={8}
-                    name="password"
-                    placeholder="Min. 8 characters"
-                    required
-                    type="password"
-                  />
-                </label>
-              </div>
-              <SubmitButton>Create staff account</SubmitButton>
-            </form>
-          </Panel>
+          {(() => {
+            const totalDevices = 1 + (venue?.extraDevices ?? 0);
+            const usedDevices = staff.filter((m) => m.role !== "manager").length + 1;
+            const atLimit = usedDevices >= totalDevices;
+            return atLimit ? (
+              <Panel title="Add staff account">
+                <div className="rounded-lg border border-dashed border-line bg-zinc-50 px-4 py-5 text-center text-sm text-muted">
+                  Device limit reached. You are using {usedDevices} of {totalDevices} device{totalDevices === 1 ? "" : "s"}.
+                  Remove a staff account to free up a slot.
+                </div>
+              </Panel>
+            ) : (
+              <Panel title="Add staff account" description="Create a login for a counter staff member.">
+                <form action={createVenueStaffAccount} className="grid gap-4">
+                  <input name="venueId" type="hidden" value={venue?.id ?? ""} />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label>
+                      <Label>Full name</Label>
+                      <input className={input} name="fullName" placeholder="Staff member name" required />
+                    </label>
+                    <label>
+                      <Label>Email</Label>
+                      <input className={input} name="email" placeholder="staff@example.com" required type="email" />
+                    </label>
+                    <label className="sm:col-span-2">
+                      <Label>Temporary password</Label>
+                      <input
+                        autoComplete="new-password"
+                        className={input}
+                        minLength={8}
+                        name="password"
+                        placeholder="Min. 8 characters"
+                        required
+                        type="password"
+                      />
+                    </label>
+                  </div>
+                  <SubmitButton>Create staff account</SubmitButton>
+                </form>
+              </Panel>
+            );
+          })()}
         </>
       )}
 

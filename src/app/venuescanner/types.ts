@@ -7,6 +7,7 @@ export type TicketItemView = {
   label: string;
   quantity: number;
   notes: string | null;
+  storageLocation: string | null;
   collected: boolean;
 };
 

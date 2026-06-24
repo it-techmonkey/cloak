@@ -49,7 +49,6 @@ export async function createGuestTicket(formData: FormData) {
     .select("id, ticket_expiry_hours")
     .eq("id", venueId)
     .eq("active", true)
-    .eq("approval_status", "approved")
     .in("billing_status", ["trialing", "active"])
     .maybeSingle();
 

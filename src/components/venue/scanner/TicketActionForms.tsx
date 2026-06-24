@@ -4,12 +4,14 @@ import { startTransition, useState } from "react";
 import type { ScannerTicket } from "@/app/venuescanner/types";
 
 export const PRESET_ITEM_TYPES = [
-  "Bag",
-  "Backpack",
+  // Hanger pool
   "Coat",
   "Jacket",
-  "Helmet",
+  // Bag/shelf pool
+  "Bag",
+  "Backpack",
   "Luggage",
+  "Helmet",
   "Electronics",
   "Sports equipment",
   "Package",
@@ -50,9 +52,6 @@ export function GuestCard({ ticket }: { ticket: ScannerTicket }) {
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted">
         <span>{ticket.guestPhone}</span>
         <span>{ticket.venueName}</span>
-        {ticket.storageLocation ? (
-          <span className="font-semibold text-foreground">Cloak {ticket.storageLocation}</span>
-        ) : null}
       </div>
     </div>
   );
@@ -60,7 +59,7 @@ export function GuestCard({ ticket }: { ticket: ScannerTicket }) {
 
 // ─── Reusable item-entry rows (shared by activation & add-items) ───────────────
 
-type ItemLine = { type: string; count: string; custom: string };
+type ItemLine = { type: string; count: string; custom: string; pool: "hanger" | "bag" | "" };
 
 function resolvedType(item: ItemLine): string {
   return item.type === OTHER_SENTINEL ? item.custom.trim() : item.type;
@@ -76,13 +75,13 @@ function ItemEntry({
   label: string;
 }) {
   function addLine() {
-    setItems((prev) => [...prev, { type: "", count: "1", custom: "" }]);
+    setItems((prev) => [...prev, { type: "", count: "1", custom: "", pool: "" }]);
   }
   function removeLine(i: number) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
-  function updateLine(i: number, field: "type" | "count" | "custom", value: string) {
-    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)));
+  function updateLine(i: number, patch: Partial<ItemLine>) {
+    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, ...patch } : item)));
   }
 
   return (
@@ -94,7 +93,7 @@ function ItemEntry({
             <div className="flex items-center gap-2">
               <select
                 className={`${fieldClass} min-w-0 flex-1`}
-                onChange={(e) => updateLine(i, "type", e.target.value)}
+                onChange={(e) => updateLine(i, { type: e.target.value, pool: "" })}
                 required
                 value={item.type}
               >
@@ -111,9 +110,9 @@ function ItemEntry({
                 maxLength={2}
                 onChange={(e) => {
                   const digits = e.target.value.replace(/\D/g, "");
-                  if (digits === "") { updateLine(i, "count", ""); return; }
+                  if (digits === "") { updateLine(i, { count: "" }); return; }
                   const n = Math.min(Math.max(parseInt(digits, 10), 1), 99);
-                  updateLine(i, "count", String(n));
+                  updateLine(i, { count: String(n) });
                 }}
                 placeholder="1"
                 type="text"
@@ -132,14 +131,42 @@ function ItemEntry({
             </div>
 
             {item.type === OTHER_SENTINEL && (
-              <input
-                autoFocus
-                className={`${fieldClass} w-full`}
-                onChange={(e) => updateLine(i, "custom", e.target.value)}
-                placeholder="Specify item (e.g. Pushchair, Scooter, Musical instrument…)"
-                type="text"
-                value={item.custom}
-              />
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  className={`${fieldClass} min-w-0 flex-1`}
+                  onChange={(e) => updateLine(i, { custom: e.target.value })}
+                  placeholder="e.g. Pushchair, Scooter, Musical instrument…"
+                  type="text"
+                  value={item.custom}
+                />
+                <div className="flex shrink-0 overflow-hidden rounded-lg border border-line">
+                  <button
+                    className={`px-3 py-2 text-xs font-semibold transition ${
+                      item.pool === "hanger"
+                        ? "bg-foreground text-white"
+                        : "bg-white text-muted hover:text-foreground"
+                    }`}
+                    onClick={() => updateLine(i, { pool: "hanger" })}
+                    title="Assign to hanger rail"
+                    type="button"
+                  >
+                    Hanger
+                  </button>
+                  <button
+                    className={`border-l border-line px-3 py-2 text-xs font-semibold transition ${
+                      item.pool === "bag"
+                        ? "bg-foreground text-white"
+                        : "bg-white text-muted hover:text-foreground"
+                    }`}
+                    onClick={() => updateLine(i, { pool: "bag" })}
+                    title="Assign to bag/shelf area"
+                    type="button"
+                  >
+                    Shelf
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         ))}
@@ -162,7 +189,14 @@ function buildItemsPayload(items: ItemLine[]): { json: string; error: string } {
   if (valid.some((item) => item.type === OTHER_SENTINEL && !item.custom.trim())) {
     return { error: "Specify what the item is for the 'Other' row.", json: "" };
   }
-  const payload = valid.map((item) => ({ label: resolvedType(item), quantity: parseInt(item.count, 10) }));
+  if (valid.some((item) => item.type === OTHER_SENTINEL && !item.pool)) {
+    return { error: "Select Hanger or Shelf for each custom item.", json: "" };
+  }
+  const payload = valid.map((item) => ({
+    label: resolvedType(item),
+    pool: item.type === OTHER_SENTINEL ? item.pool : undefined,
+    quantity: parseInt(item.count, 10),
+  }));
   return { error: "", json: JSON.stringify(payload) };
 }
 
@@ -172,12 +206,14 @@ export function ActivationForm({
   formAction,
   pending,
   ticket,
+  venueId,
 }: {
   formAction: (fd: FormData) => void;
   pending: boolean;
   ticket: ScannerTicket;
+  venueId?: string;
 }) {
-  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: "1", custom: "" }]);
+  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: "1", custom: "", pool: "" }]);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
@@ -192,6 +228,7 @@ export function ActivationForm({
     fd.set("ticketId", ticket.id);
     fd.set("items", json);
     fd.set("notes", notes.trim());
+    if (venueId) fd.set("venueId", venueId);
     startTransition(() => formAction(fd));
   }
 
@@ -233,13 +270,15 @@ export function AddItemsForm({
   onCancel,
   pending,
   ticket,
+  venueId,
 }: {
   formAction: (fd: FormData) => void;
   onCancel: () => void;
   pending: boolean;
   ticket: ScannerTicket;
+  venueId?: string;
 }) {
-  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: "1", custom: "" }]);
+  const [items, setItems] = useState<ItemLine[]>([{ type: "", count: "1", custom: "", pool: "" }]);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
@@ -254,6 +293,7 @@ export function AddItemsForm({
     fd.set("ticketId", ticket.id);
     fd.set("items", json);
     fd.set("notes", notes.trim());
+    if (venueId) fd.set("venueId", venueId);
     startTransition(() => formAction(fd));
   }
 
@@ -301,10 +341,12 @@ export function CheckoutForm({
   formAction,
   pending,
   ticket,
+  venueId,
 }: {
   formAction: (fd: FormData) => void;
   pending: boolean;
   ticket: ScannerTicket;
+  venueId?: string;
 }) {
   const openItems = ticket.items.filter((i) => !i.collected);
   const collectedItems = ticket.items.filter((i) => i.collected);
@@ -333,6 +375,7 @@ export function CheckoutForm({
     fd.set("_action", "checkout");
     fd.set("ticketId", ticket.id);
     fd.set("itemIds", JSON.stringify([...selected]));
+    if (venueId) fd.set("venueId", venueId);
     startTransition(() => formAction(fd));
   }
 
@@ -343,6 +386,7 @@ export function CheckoutForm({
         onCancel={() => setAdding(false)}
         pending={pending}
         ticket={ticket}
+        venueId={venueId}
       />
     );
   }
@@ -351,12 +395,6 @@ export function CheckoutForm({
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
-      {ticket.storageLocation ? (
-        <p className="text-xs text-muted">
-          Cloak <span className="font-semibold text-foreground">{ticket.storageLocation}</span>
-        </p>
-      ) : null}
-
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
           Items in storage
@@ -375,9 +413,12 @@ export function CheckoutForm({
                 onChange={() => toggle(item.id)}
                 type="checkbox"
               />
-              <span className="flex-1 text-sm font-medium text-foreground">
-                {item.quantity > 1 ? `${item.quantity}× ` : ""}{item.label}
-              </span>
+              <span className="flex-1 text-sm font-medium text-foreground">{item.label}</span>
+              {item.storageLocation ? (
+                <span className="shrink-0 rounded bg-foreground px-1.5 py-0.5 font-mono text-xs font-bold text-white">
+                  {item.storageLocation}
+                </span>
+              ) : null}
               {item.notes ? <span className="text-xs text-muted">{item.notes}</span> : null}
             </label>
           ))}
@@ -393,7 +434,10 @@ export function CheckoutForm({
             {collectedItems.map((item) => (
               <div className="flex items-center gap-2 text-sm text-muted line-through" key={item.id}>
                 <span className="text-emerald-500">✓</span>
-                {item.quantity > 1 ? `${item.quantity}× ` : ""}{item.label}
+                {item.label}
+                {item.storageLocation ? (
+                  <span className="font-mono text-xs">{item.storageLocation}</span>
+                ) : null}
               </div>
             ))}
           </div>

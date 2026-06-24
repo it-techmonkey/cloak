@@ -1,10 +1,13 @@
 import AuthStatePage from "@/components/auth/AuthStatePage";
 import VenueScannerPage from "@/components/venue/scanner/VenueScannerPage";
 import { requireVenueAccess } from "@/lib/auth/guards";
+import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+type SearchParams = Promise<{ venueId?: string }>;
+
+export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const guard = await requireVenueAccess("/venuescanner");
 
   if (guard.status === "not_configured") {
@@ -16,5 +19,26 @@ export default async function Page() {
     );
   }
 
-  return <VenueScannerPage />;
+  const params = await searchParams;
+  const venueIds = [...new Set(guard.venueRoles.map((r) => r.venueId))];
+
+  let venues: Array<{ id: string; name: string }> = [];
+  if (venueIds.length > 0 && isSupabaseAdminConfigured()) {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("venues")
+      .select("id, name")
+      .in("id", venueIds)
+      .order("name");
+    venues = (data ?? []).map((v) => ({ id: v.id, name: v.name }));
+  }
+
+  const selectedVenueId =
+    params.venueId && venues.some((v) => v.id === params.venueId)
+      ? params.venueId
+      : undefined;
+
+  const venueRole = guard.venueRoles.some((r) => r.role === "manager") ? "manager" : "staff";
+
+  return <VenueScannerPage venues={venues} selectedVenueId={selectedVenueId} venueRole={venueRole} />;
 }

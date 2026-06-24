@@ -1,21 +1,25 @@
 import Link from "next/link";
+import Image from "next/image";
 
-const heroImage = "/images/home-hero.png";
+const heroImage = "/images/home-hero.webp";
 
 export default function Hero() {
   return (
     <>
-      <section
-        className="relative min-h-[88svh] overflow-hidden bg-zinc-950"
-        style={{
-          backgroundImage: `url(${heroImage})`,
-          backgroundPosition: "center 30%",
-          backgroundSize: "cover",
-        }}
-      >
+      <section className="relative min-h-[88svh] overflow-hidden bg-zinc-950">
+        {/* Hero image via Next.js Image for sharp, optimised rendering */}
+        <Image
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-center"
+          fill
+          priority
+          quality={90}
+          src={heroImage}
+        />
+
         {/* Layered overlays for depth */}
-        <div className="absolute inset-0 bg-linear-to-r from-black/90 via-black/60 to-black/20" />
-        <div className="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-r from-black/85 via-black/50 to-black/10" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
 
         <div className="relative mx-auto flex min-h-[88svh] w-full max-w-7xl flex-col justify-end pb-20 px-4 sm:px-6 lg:justify-center lg:pb-0 lg:py-24 lg:px-8">
           <div className="max-w-xl">
@@ -41,16 +45,16 @@ export default function Hero() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-zinc-900 shadow-lg transition hover:bg-zinc-100 active:scale-95"
                 href="/venuesignup"
               >
-                Register your venue — free
+                Sign up — it&apos;s free
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                   <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </Link>
               <Link
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                href="/register-interest"
+                href="/book-a-demo"
               >
-                Talk to us first
+                Book a Demo
               </Link>
             </div>
 

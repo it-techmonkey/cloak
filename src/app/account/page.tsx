@@ -56,7 +56,7 @@ export default async function AccountPage() {
       <header className="sticky top-0 z-40 border-b border-line bg-panel/95 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link className="flex items-center gap-2.5" href="/">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-foreground text-xs font-bold text-white">CL</span>
+            <img alt="Cloak" className="h-8 w-8 rounded-lg object-cover" src="/images/cloak-logo.png" />
             <span className="text-sm font-semibold text-foreground">Cloak</span>
           </Link>
           <AccountSignOutButton />

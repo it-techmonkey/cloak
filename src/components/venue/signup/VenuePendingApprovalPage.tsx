@@ -34,9 +34,7 @@ export default function VenuePendingApprovalPage({
       <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center gap-8 px-4 py-12 sm:px-6">
         {/* Hero */}
         <div className="flex flex-col items-center text-center">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-foreground text-lg font-semibold text-white shadow-lg">
-            CL
-          </div>
+          <img alt="Cloak" className="h-14 w-14 rounded-2xl object-cover shadow-lg" src="/images/cloak-logo.png" />
           <span className="mt-4 inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
             Pending review
           </span>
@@ -124,7 +122,7 @@ export default function VenuePendingApprovalPage({
           </Link>
           <Link
             className="flex items-center justify-center rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-            href="/register-interest"
+            href="/contact-us"
           >
             Contact support
           </Link>

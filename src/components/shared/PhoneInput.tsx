@@ -125,7 +125,11 @@ export default function PhoneInput({
           id={inputId}
           inputMode="tel"
           onBlur={() => setTouched(true)}
-          onChange={(e) => update(dial, e.target.value)}
+          onChange={(e) => {
+            // Allow only digits, spaces, hyphens, parentheses in the national part.
+            const cleaned = e.target.value.replace(/[^\d\s()-]/g, "");
+            update(dial, cleaned);
+          }}
           placeholder={placeholder}
           required={required}
           type="tel"

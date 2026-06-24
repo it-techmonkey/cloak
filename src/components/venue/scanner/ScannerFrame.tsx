@@ -11,7 +11,7 @@ const FLASH_DURATION_MS = 1500;
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ScannerFrame() {
+export default function ScannerFrame({ venueId }: { venueId?: string }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, formAction, pending] = useActionState(handleScannerAction, initialScannerState);
@@ -41,6 +41,7 @@ export default function ScannerFrame() {
     const fd = new FormData();
     fd.set("_action", "lookup");
     fd.set("lookupValue", value);
+    if (venueId) fd.set("venueId", venueId);
     startTransition(() => formAction(fd));
   }
 
@@ -69,6 +70,7 @@ export default function ScannerFrame() {
 
         <form action={formAction} className="flex flex-col gap-2 sm:flex-row">
           <input name="_action" type="hidden" value="lookup" />
+          {venueId && <input name="venueId" type="hidden" value={venueId} />}
           <input
             autoCapitalize="characters"
             autoComplete="off"
@@ -136,9 +138,9 @@ export default function ScannerFrame() {
                 {isActivation ? "Record items" : "Return or add items"}
               </p>
               {isActivation ? (
-                <ActivationForm formAction={formAction} pending={pending} ticket={ticket} />
+                <ActivationForm formAction={formAction} pending={pending} ticket={ticket} venueId={venueId} />
               ) : (
-                <CheckoutForm formAction={formAction} pending={pending} ticket={ticket} />
+                <CheckoutForm formAction={formAction} pending={pending} ticket={ticket} venueId={venueId} />
               )}
             </div>
           </div>

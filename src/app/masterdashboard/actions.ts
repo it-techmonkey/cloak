@@ -49,113 +49,6 @@ async function writeAuditLog({
   });
 }
 
-export async function approveVenue(formData: FormData) {
-  const venueId = readField(formData, "venueId");
-  const admin = await assertAdmin();
-  const supabase = createAdminClient();
-
-  const { data: venue } = await supabase
-    .from("venues")
-    .select("billing_status, stripe_customer_id, name, contact_email")
-    .eq("id", venueId)
-    .maybeSingle();
-
-  if (!venue) {
-    finish("Venue registration was not found.");
-  }
-
-  const billingValid =
-    ["trialing", "active"].includes(venue.billing_status) && Boolean(venue.stripe_customer_id);
-
-  if (!billingValid) {
-    finish("Venue cannot be approved until billing is valid.");
-  }
-
-  const { error } = await supabase
-    .from("venues")
-    .update({
-      active: true,
-      approval_status: "approved",
-      approved_at: new Date().toISOString(),
-      approved_by: admin.userId,
-      rejection_reason: null,
-    })
-    .eq("id", venueId);
-
-  if (error) {
-    finish("Venue approval failed. Please try again.");
-  }
-
-  await writeAuditLog({
-    action: "venue.approved",
-    actorId: admin.userId,
-    metadata: { billing_status: venue.billing_status },
-    venueId,
-  });
-
-  if (venue.contact_email) {
-    await sendEmail({
-      to: venue.contact_email,
-      subject: `${venue.name} is approved on Cloak`,
-      react: VenueApprovedEmail({
-        contactName: `${venue.name} Manager`,
-        loginUrl: `${getSiteUrl()}/venuedashboard`,
-        venueName: venue.name,
-      }),
-    });
-  }
-
-  revalidatePath("/masterdashboard");
-  finish("Venue approved and activated.");
-}
-
-export async function queryVenue(formData: FormData) {
-  const venueId = readField(formData, "venueId");
-  const message = readField(formData, "message");
-  const admin = await assertAdmin();
-  const supabase = createAdminClient();
-
-  const { data: venue } = await supabase
-    .from("venues")
-    .select("name, contact_email")
-    .eq("id", venueId)
-    .maybeSingle();
-
-  const { error } = await supabase
-    .from("venues")
-    .update({
-      // Stay pending — just attach the query message so the venue can respond
-      rejection_reason: message || "Please provide additional information.",
-    })
-    .eq("id", venueId);
-
-  if (error) {
-    finish("Could not send query. Please try again.");
-  }
-
-  await writeAuditLog({
-    action: "venue.queried",
-    actorId: admin.userId,
-    metadata: { message },
-    venueId,
-  });
-
-  if (venue?.contact_email) {
-    await sendEmail({
-      to: venue.contact_email,
-      subject: `A question about your ${venue.name} application`,
-      react: VenueRejectedEmail({
-        contactName: `${venue.name} Manager`,
-        isQuery: true,
-        reason: message || "Please provide additional information.",
-        venueName: venue.name,
-      }),
-    });
-  }
-
-  revalidatePath("/masterdashboard");
-  finish("Query sent to venue.");
-}
 
 export async function rejectVenue(formData: FormData) {
   const venueId = readField(formData, "venueId");
@@ -173,8 +66,6 @@ export async function rejectVenue(formData: FormData) {
     .from("venues")
     .update({
       active: false,
-      approval_status: "rejected",
-      rejection_reason: reason,
     })
     .eq("id", venueId);
 
@@ -216,8 +107,6 @@ export async function suspendVenue(formData: FormData) {
     .from("venues")
     .update({
       active: false,
-      approval_status: "suspended",
-      rejection_reason: reason,
     })
     .eq("id", venueId);
 
@@ -234,4 +123,30 @@ export async function suspendVenue(formData: FormData) {
 
   revalidatePath("/masterdashboard");
   finish("Venue suspended.");
+}
+
+export async function activateVenue(formData: FormData) {
+  const venueId = readField(formData, "venueId");
+  const admin = await assertAdmin();
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("venues")
+    .update({
+      active: true,
+    })
+    .eq("id", venueId);
+
+  if (error) {
+    finish("Venue activation failed. Please try again.");
+  }
+
+  await writeAuditLog({
+    action: "venue.activated",
+    actorId: admin.userId,
+    venueId,
+  });
+
+  revalidatePath("/masterdashboard");
+  finish("Venue reactivated.");
 }

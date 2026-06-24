@@ -12,28 +12,38 @@ const cookieOptions = {
   secure: process.env.NODE_ENV === "production",
 };
 
-export type VenueSignupDraft = {
+export type VenueEntry = {
+  venueName: string;
+  hangerCapacity: number;
+  bagCapacity: number;
   addressLine1: string;
   addressLine2: string;
-  billingPlan?: VenuePlanId;
-  capacity: number;
   city: string;
-  contactEmail: string;
-  contactPhone: string;
+  postalCode: string;
   country: string;
   latitude?: number | null;
   longitude?: number | null;
-  postalCode: string;
-  venueName: string;
+  extraDevices: number;
+};
+
+export type VenueSignupDraft = {
+  // Step 1 — plan selection
+  billingPlan?: VenuePlanId;
+
+  // Step 2 — contact + venue details
+  contactName: string;
+  companyName: string;
+  contactEmail: string;
+  contactPhone: string;
+  venueCount: "single" | "multiple";
+  venueQuantity?: number;
+  country: string;
+  venues: VenueEntry[];
 };
 
 export async function getDraftVenueSignup(): Promise<VenueSignupDraft | null> {
   const value = (await cookies()).get(draftDataCookie)?.value;
-
-  if (!value) {
-    return null;
-  }
-
+  if (!value) return null;
   try {
     return JSON.parse(decodeURIComponent(value)) as VenueSignupDraft;
   } catch {
