@@ -23,7 +23,7 @@ export async function submitLeadForm(formData: FormData) {
       contact_email: email,
       contact_name: contactName,
       message: message || null,
-      venue_name: venueName || null,
+      venue_name: venueName || "",
     });
   }
 
