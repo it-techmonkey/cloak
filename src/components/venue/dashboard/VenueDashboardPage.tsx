@@ -4,8 +4,11 @@ import PageShell from "@/components/shared/PageShell";
 import Panel from "@/components/shared/Panel";
 import StatusPill from "@/components/shared/StatusPill";
 import type { VenueDashboardData } from "@/lib/venue-dashboard";
+import { deletePendingTicket, endEvent } from "@/app/venuedashboard/actions";
+import ActiveEventBanner from "./ActiveEventBanner";
 import ApprovalBanner from "./ApprovalBanner";
 import LiveDashboardStats, { type LiveCounts } from "./LiveDashboardStats";
+import PreEventAlert from "./PreEventAlert";
 import TodayTickets from "./TodayTickets";
 
 export default function VenueDashboardPage({
@@ -60,12 +63,15 @@ function StaffDashboard({ data }: { data: VenueDashboardData }) {
       }
     >
       <ApprovalBanner />
+      {data.activeEvents.map((e) =>
+        e.startsAt ? <PreEventAlert event={e} key={e.id} /> : null,
+      )}
       <LiveDashboardStats
         initialCounts={buildInitialCounts(data)}
         showCapacityBar={false}
         venueId={data.venue?.id ?? null}
       />
-      <TodayTickets data={data} />
+      <TodayTickets data={data} isManager={false} onDeletePending={deletePendingTicket} />
     </PageShell>
   );
 }
@@ -93,8 +99,17 @@ function ManagerDashboard({
         isLocked ? null : (
           <>
             <PrimaryLink href="/venuescanner">Open scanner</PrimaryLink>
-            <SecondaryLink href="/venueanalytics">Analytics</SecondaryLink>
-            <SecondaryLink href="/venuesettings">Settings</SecondaryLink>
+            <SecondaryLink href="/smsbackup">SMS Backup</SecondaryLink>
+            <a
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-white text-muted transition hover:border-foreground/20 hover:text-foreground"
+              href="/venuesettings"
+              title="Settings"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
           </>
         )
       }
@@ -119,13 +134,19 @@ function ManagerDashboard({
       )}
 
       <ApprovalBanner />
+      {data.activeEvents.map((e) =>
+        e.startsAt ? <PreEventAlert event={e} key={`pre-${e.id}`} /> : null,
+      )}
+      {data.activeEvents.map((e) => (
+        <ActiveEventBanner event={e} key={`live-${e.id}`} onEnd={endEvent} />
+      ))}
       <LiveDashboardStats
         initialCounts={buildInitialCounts(data, selectedVenueId)}
         showCapacityBar={!isLocked}
         venueId={activeVenueId}
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
-        <TodayTickets data={data} />
+        <TodayTickets data={data} isManager={true} onDeletePending={deletePendingTicket} />
         {!isLocked && <StaffRoster staff={data.staff} />}
       </div>
     </PageShell>

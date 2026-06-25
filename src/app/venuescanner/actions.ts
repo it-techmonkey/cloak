@@ -1,5 +1,6 @@
 "use server";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getScannerContext, lookupTicketByInput } from "@/lib/scanner-core";
 import {
   type ParsedItem,
@@ -51,6 +52,46 @@ function parseItemIds(formData: FormData): string[] {
   } catch {
     return [];
   }
+}
+
+export type PendingTicketSuggestion = {
+  id: string;
+  publicCode: string;
+  guestName: string;
+  guestPhone: string;
+};
+
+export async function searchPendingTickets(
+  query: string,
+  venueId?: string,
+): Promise<PendingTicketSuggestion[]> {
+  if (!query || query.length < 2) return [];
+
+  const context = await getScannerContext();
+  if (!context) return [];
+
+  const allowedVenueIds = context.guard.venueRoles.map((r) => r.venueId);
+  if (venueId && !allowedVenueIds.includes(venueId)) return [];
+  const scopeIds = venueId ? [venueId] : allowedVenueIds;
+
+  const supabase = createAdminClient();
+  const pattern = `%${query.trim()}%`;
+  const { data } = await supabase
+    .from("tickets")
+    .select("id, public_code, guest_name, guest_phone")
+    .in("venue_id", scopeIds)
+    .eq("status", "pending_activation")
+    .gt("expires_at", new Date().toISOString())
+    .or(`public_code.ilike.${pattern},guest_name.ilike.${pattern}`)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  return (data ?? []).map((t) => ({
+    guestName: t.guest_name,
+    guestPhone: t.guest_phone,
+    id: t.id,
+    publicCode: t.public_code,
+  }));
 }
 
 export async function handleScannerAction(

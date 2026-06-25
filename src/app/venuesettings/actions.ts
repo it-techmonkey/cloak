@@ -1,5 +1,6 @@
 "use server";
 
+import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireVenueAccess } from "@/lib/auth/guards";
@@ -43,6 +44,8 @@ export async function createVenueStaffAccount(formData: FormData) {
   const fullName = readField(formData, "fullName");
   const email = readField(formData, "email").toLowerCase();
   const password = readField(formData, "password");
+  const roleRaw = readField(formData, "role");
+  const staffRole: "staff" | "manager" = roleRaw === "manager" ? "manager" : "staff";
 
   if (guard.status !== "authorized" || !isSupabaseAdminConfigured()) {
     fail("Staff account creation is temporarily unavailable.");
@@ -60,22 +63,24 @@ export async function createVenueStaffAccount(formData: FormData) {
 
   const supabase = createAdminClient();
 
-  // Enforce device limit before creating the account
-  const [venueRow, existingStaffResult] = await Promise.all([
-    supabase.from("venues").select("extra_devices").eq("id", venueId).maybeSingle(),
-    supabase
-      .from("venue_staff")
-      .select("id", { count: "exact", head: true })
-      .eq("venue_id", venueId)
-      .eq("role", "staff"),
-  ]);
-  const totalDevices = 1 + (venueRow.data?.extra_devices ?? 0);
-  const usedDevices = (existingStaffResult.count ?? 0) + 1; // +1 for the manager
-  if (usedDevices >= totalDevices) {
-    fail(
-      `Device limit reached. Your plan allows ${totalDevices} device${totalDevices === 1 ? "" : "s"} (including the manager account).`,
-      venueId,
-    );
+  // Enforce device limit before creating the account (only for staff, not additional managers)
+  if (staffRole === "staff") {
+    const [venueRow, existingStaffResult] = await Promise.all([
+      supabase.from("venues").select("extra_devices").eq("id", venueId).maybeSingle(),
+      supabase
+        .from("venue_staff")
+        .select("id", { count: "exact", head: true })
+        .eq("venue_id", venueId)
+        .eq("role", "staff"),
+    ]);
+    const totalDevices = 1 + (venueRow.data?.extra_devices ?? 0);
+    const usedDevices = (existingStaffResult.count ?? 0) + 1; // +1 for the manager
+    if (usedDevices >= totalDevices) {
+      fail(
+        `Device limit reached. Your plan allows ${totalDevices} device${totalDevices === 1 ? "" : "s"} (including the manager account).`,
+        venueId,
+      );
+    }
   }
 
   let user = await findUserByEmail(email);
@@ -121,19 +126,19 @@ export async function createVenueStaffAccount(formData: FormData) {
   if (existingStaff) {
     await supabase
       .from("venue_staff")
-      .update({ accepted_at: new Date().toISOString(), role: "staff" })
+      .update({ accepted_at: new Date().toISOString(), role: staffRole })
       .eq("id", existingStaff.id);
   } else {
     const { error: staffError } = await supabase.from("venue_staff").insert({
       accepted_at: new Date().toISOString(),
       profile_id: user.id,
-      role: "staff",
+      role: staffRole,
       venue_id: venueId,
     });
     if (staffError) fail("We could not attach the staff account to this venue.", venueId);
   }
 
-  finish("Staff account created.", venueId);
+  finish(`${staffRole === "manager" ? "Manager" : "Staff"} account created.`, venueId);
 }
 
 // ─── Remove staff member ───────────────────────────────────────────────────────
@@ -286,6 +291,31 @@ export async function updateVenueExpiry(formData: FormData) {
 
   revalidatePath("/venuesettings");
   finish(enabled ? `Tickets now expire after ${ticketExpiryHours} hours.` : "Ticket expiry disabled.", venueId);
+}
+
+// ─── Regenerate venue QR slug ─────────────────────────────────────────────────
+
+export async function regenerateVenueQrSlug(venueId: string): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireVenueAccess("/venuesettings", ["manager"]);
+
+  if (guard.status !== "authorized" || !isSupabaseAdminConfigured()) {
+    return { ok: false, error: "QR regeneration is temporarily unavailable." };
+  }
+
+  if (!venueId || !guard.venueRoles.some((r) => r.venueId === venueId && r.role === "manager")) {
+    return { ok: false, error: "No managed venue was found for this account." };
+  }
+
+  // Generate a new random slug: 12 hex chars prefixed with "v-"
+  const newSlug = `v-${crypto.randomBytes(6).toString("hex")}`;
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("venues").update({ slug: newSlug }).eq("id", venueId);
+
+  if (error) return { ok: false, error: "Could not regenerate QR code. Please try again." };
+
+  revalidatePath("/venuesettings");
+  return { ok: true };
 }
 
 // ─── Change password ───────────────────────────────────────────────────────────

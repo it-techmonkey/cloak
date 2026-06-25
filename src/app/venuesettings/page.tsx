@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       : data.venue;
 
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://cloakqr.com").replace(/\/$/, "");
-  const checkInUrl = selectedVenue ? `${origin}/customer-signup?venue=${selectedVenue.id}` : null;
+  const checkInUrl = selectedVenue ? `${origin}/customer-signup?venue=${selectedVenue.slug}` : null;
 
   return (
     <VenueSettingsPage

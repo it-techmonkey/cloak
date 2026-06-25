@@ -36,9 +36,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       return (
         <TicketPage
           ticket={ticketView}
-          qrCard={<TicketQrCard ticket={ticketView} />}
-          walletParam={`token=${encodeURIComponent(token)}`}
-          wallet={wallet}
+          qrCard={<TicketQrCard ticket={ticketView} wallet={wallet} walletParam={`token=${encodeURIComponent(token)}`} />}
         />
       );
     }
@@ -57,9 +55,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       return (
         <TicketPage
           ticket={ticketView}
-          qrCard={<TicketQrCard ticket={ticketView} />}
-          walletParam={`code=${encodeURIComponent(result.ticket.ticketId)}`}
-          wallet={wallet}
+          qrCard={<TicketQrCard ticket={ticketView} wallet={wallet} walletParam={`code=${encodeURIComponent(result.ticket.ticketId)}`} />}
         />
       );
     }

@@ -9,29 +9,12 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatStatus(status: TicketView["status"]) {
-  if (!status || status === "pending_activation") return "Pending activation";
-  if (status === "active") return "Stored";
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
-function formatExpiry(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-  }).format(new Date(value));
-}
-
 export default function TicketDetails({ ticket }: { ticket: TicketView }) {
   return (
     <div className="divide-y divide-line rounded-xl border border-line bg-panel px-4">
       <Row label="Venue" value={ticket.venueName} />
       <Row label="Guest" value={ticket.guestName} />
       <Row label="Mobile" value={ticket.mobile} />
-      <Row label="Status" value={formatStatus(ticket.status)} />
-      <Row label="Expires" value={formatExpiry(ticket.expiresAt)} />
     </div>
   );
 }

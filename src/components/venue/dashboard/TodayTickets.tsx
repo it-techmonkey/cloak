@@ -1,35 +1,39 @@
-﻿import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import Panel from "@/components/shared/Panel";
 import StatusPill, { type StatusTone } from "@/components/shared/StatusPill";
-import type { TicketFilter, VenueDashboardData, VenueTicketListItem } from "@/lib/venue-dashboard";
+import type { DateRange, TicketFilter, VenueDashboardData, VenueTicketListItem } from "@/lib/venue-dashboard";
 
 const filters: Array<{ label: string; value: TicketFilter }> = [
   { label: "All", value: "all" },
   { label: "Pending", value: "pending" },
   { label: "Stored", value: "active" },
   { label: "Collected", value: "collected" },
-  { label: "Expired", value: "expired" },
+  { label: "Forgotten", value: "forgotten" },
+];
+
+const dateRangeOptions: Array<{ label: string; value: DateRange }> = [
+  { label: "Today", value: "today" },
+  { label: "24h", value: "24h" },
+  { label: "7 days", value: "7d" },
+  { label: "1 month", value: "1mo" },
+  { label: "All time", value: "all" },
 ];
 
 function statusLabel(status: VenueTicketListItem["status"]) {
   if (status === "pending_activation") return "Pending";
   if (status === "active") return "Stored";
+  if (status === "partially_collected") return "Partial";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 function statusTone(status: VenueTicketListItem["status"]): StatusTone {
-  if (status === "active") return "green";
+  if (status === "active" || status === "partially_collected") return "green";
   if (status === "pending_activation") return "warning";
   if (status === "collected") return "blue";
   return "danger";
-}
-
-function filterHref(filter: TicketFilter, search: string) {
-  const p = new URLSearchParams();
-  if (filter !== "all") p.set("filter", filter);
-  if (search) p.set("q", search);
-  const qs = p.toString();
-  return qs ? `/venuedashboard?${qs}` : "/venuedashboard";
 }
 
 function fmtTime(value: string) {
@@ -38,106 +42,215 @@ function fmtTime(value: string) {
   );
 }
 
-export default function TodayTickets({ data }: { data: VenueDashboardData }) {
+function fmtDate(value: string) {
+  const d = new Date(value);
+  const now = new Date();
+  const isToday =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear();
+  if (isToday) return fmtTime(value);
+  return new Intl.DateTimeFormat("en", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(d);
+}
+
+
+export default function TodayTickets({
+  data,
+  isManager = false,
+  onDeletePending,
+}: {
+  data: VenueDashboardData;
+  isManager?: boolean;
+  onDeletePending?: (id: string) => Promise<void>;
+}) {
+  const router = useRouter();
+  const [search, setSearch] = useState(data.search);
+  const [activeFilter, setActiveFilter] = useState<TicketFilter>(data.activeFilter);
+  const [dateRange, setDateRange] = useState<DateRange>(data.dateRange);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search/filter/dateRange → navigate so the server re-fetches with the right scope
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      const p = new URLSearchParams();
+      if (activeFilter !== "all") p.set("filter", activeFilter);
+      if (search) p.set("q", search);
+      if (dateRange !== "all") p.set("range", dateRange);
+      router.replace(`/venuedashboard?${p.toString()}`, { scroll: false });
+    }, 300);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, activeFilter, dateRange]);
+
+  function changeFilter(f: TicketFilter) {
+    setActiveFilter(f);
+  }
+
+  // Client-side search filter only (date range is handled server-side via URL param)
+  const filteredTickets =
+    search.trim().length > 0
+      ? data.tickets.filter((t) => {
+          const q = search.toLowerCase();
+          return (
+            t.guestName.toLowerCase().includes(q) ||
+            t.guestPhone.toLowerCase().includes(q) ||
+            t.publicCode.toLowerCase().includes(q)
+          );
+        })
+      : data.tickets;
+
+  async function handleDelete(id: string) {
+    if (!onDeletePending) return;
+    setDeletingId(id);
+    try {
+      await onDeletePending(id);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <Panel title="Tickets">
       {/* Search */}
-      <form action="/venuedashboard" className="mb-3 flex gap-2">
-        {data.activeFilter !== "all" && (
-          <input name="filter" type="hidden" value={data.activeFilter} />
-        )}
+      <div className="mb-3">
         <input
-          className="min-w-0 flex-1 rounded-lg border border-line bg-zinc-50 px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30 focus:bg-white"
-          defaultValue={data.search}
-          name="q"
-          placeholder="Search guests…"
+          className="w-full rounded-lg border border-line bg-zinc-50 px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30 focus:bg-white"
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or phone…"
+          value={search}
         />
-        <button
-          className="shrink-0 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-white"
-          type="submit"
-        >
-          Go
-        </button>
-      </form>
+      </div>
 
-      {/* Filter tabs — scrollable on mobile */}
-      <div className="mb-4 flex gap-1 overflow-x-auto pb-1">
+      {/* Filter tabs */}
+      <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
         {filters.map((f) => {
-          const active = data.activeFilter === f.value;
+          const active = activeFilter === f.value;
           return (
-            <Link
+            <button
               className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 active
                   ? "bg-foreground text-white"
                   : "bg-zinc-100 text-muted hover:bg-zinc-200 hover:text-foreground"
               }`}
-              href={filterHref(f.value, data.search)}
               key={f.value}
+              onClick={() => changeFilter(f.value)}
+              type="button"
             >
               {f.label}
-            </Link>
+            </button>
           );
         })}
       </div>
 
-      {/* Table */}
-      {data.tickets.length === 0 ? (
+      {/* Date range row */}
+      <div className="mb-4 flex gap-1 overflow-x-auto pb-1">
+        {dateRangeOptions.map((r) => (
+          <button
+            className={`shrink-0 rounded-lg px-2.5 py-1 text-xs transition ${
+              dateRange === r.value
+                ? "bg-zinc-200 font-medium text-foreground"
+                : "text-muted hover:text-foreground"
+            }`}
+            key={r.value}
+            onClick={() => setDateRange(r.value)}
+            type="button"
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Ticket list */}
+      {filteredTickets.length === 0 ? (
         <div className="rounded-lg border border-dashed border-line bg-zinc-50 px-4 py-10 text-center">
           <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-xl">🎫</div>
           <p className="text-sm font-medium text-foreground">
-            {data.activeFilter === "all" ? "No tickets today yet" : `No ${data.activeFilter} tickets`}
+            {activeFilter === "all" ? "No tickets" : `No ${activeFilter} tickets`}
           </p>
-          <p className="mt-1 text-xs text-muted">
-            {data.activeFilter === "all"
-              ? "Tickets will appear here as guests check in."
-              : "Try a different filter to find what you need."}
-          </p>
+          <p className="mt-1 text-xs text-muted">Try a different filter or date range.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-line">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                <th className="px-3 py-3 sm:px-4">Guest</th>
-                <th className="hidden px-3 py-3 sm:table-cell sm:px-4">Item</th>
-                <th className="hidden px-3 py-3 lg:table-cell lg:px-4">Time</th>
-                <th className="px-3 py-3 sm:px-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {data.tickets.map((ticket) => (
-                <tr className="hover:bg-zinc-50" key={ticket.id}>
-                  <td className="px-3 py-3 sm:px-4">
-                    <Link className="block" href={`/venueticketdetail?id=${ticket.id}`}>
-                      <p className="font-medium text-foreground">{ticket.guestName}</p>
-                      <p className="mt-0.5 font-mono text-xs text-muted">{ticket.publicCode}</p>
-                    </Link>
-                  </td>
-                  <td className="hidden px-3 py-3 sm:table-cell sm:px-4">
-                    {ticket.itemType ? (
-                      <span className="text-foreground">
-                        {ticket.itemCount > 1 ? `${ticket.itemCount}× ` : ""}
-                        {ticket.itemType}
-                      </span>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="hidden px-3 py-3 text-muted lg:table-cell lg:px-4">
-                    {fmtTime(ticket.createdAt)}
-                  </td>
-                  <td className="px-3 py-3 sm:px-4">
-                    <StatusPill tone={statusTone(ticket.status)}>
-                      {statusLabel(ticket.status)}
-                    </StatusPill>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="divide-y divide-line overflow-hidden rounded-lg border border-line">
+          {filteredTickets.map((ticket) => (
+            <TicketRow
+              deletingId={deletingId}
+              key={ticket.id}
+              onDelete={isManager && onDeletePending ? handleDelete : undefined}
+              ticket={ticket}
+            />
+          ))}
         </div>
       )}
     </Panel>
   );
 }
 
+function TicketRow({
+  ticket,
+  onDelete,
+  deletingId,
+}: {
+  ticket: VenueTicketListItem;
+  onDelete?: (id: string) => Promise<void>;
+  deletingId: string | null;
+}) {
+  const isPending = ticket.status === "pending_activation";
+  const slots = ticket.storageLocation
+    ? ticket.storageLocation.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-3 hover:bg-zinc-50 sm:px-4">
+      {/* Left side — name, item, time, mobile */}
+      <a
+        className="min-w-0 flex-1 block"
+        href={`/venueticketdetail?id=${ticket.id}`}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-semibold text-sm text-foreground truncate">{ticket.guestName}</p>
+          <StatusPill tone={statusTone(ticket.status)}>{statusLabel(ticket.status)}</StatusPill>
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+          {ticket.itemType ? (
+            <span>
+              {ticket.itemCount > 1 ? `${ticket.itemCount}× ` : ""}{ticket.itemType}
+            </span>
+          ) : null}
+          <span className="font-mono">{ticket.publicCode}</span>
+          <span>{ticket.guestPhone}</span>
+          <span>{fmtDate(ticket.lastActivityAt)}</span>
+        </div>
+      </a>
+
+      {/* Right side — slot + optional delete */}
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        {slots.length > 0 ? (
+          <div className="flex flex-wrap justify-end gap-1">
+            {slots.map((slot) => (
+              <span
+                className="rounded bg-foreground px-1.5 py-0.5 font-mono text-xs font-bold text-white"
+                key={slot}
+              >
+                {slot}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-xs text-muted">—</span>
+        )}
+        {isPending && onDelete ? (
+          <button
+            className="text-[10px] font-medium text-red-500 hover:text-red-700 disabled:opacity-40"
+            disabled={deletingId === ticket.id}
+            onClick={() => onDelete(ticket.id)}
+            type="button"
+          >
+            {deletingId === ticket.id ? "Deleting…" : "Delete"}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}

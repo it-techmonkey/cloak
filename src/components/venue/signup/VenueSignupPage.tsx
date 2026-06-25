@@ -56,10 +56,12 @@ function SignupStepper({ step }: { step: 1 | 2 | 3 }) {
 }
 
 export default function VenueSignupPage({
+  billingPlan,
   error,
   step = 1,
   venue,
 }: {
+  billingPlan?: string | null;
   error?: string;
   step?: 1 | 2 | 3;
   venue?: VenueSignupSummary | null;
@@ -138,7 +140,7 @@ export default function VenueSignupPage({
 
         <div className="w-full">
           {step === 1 ? <PlanPreview error={error} /> : null}
-          {step === 2 ? <VenueDetailsPreview error={error} /> : null}
+          {step === 2 ? <VenueDetailsPreview billingPlan={billingPlan ?? null} error={error} /> : null}
           {step === 3 ? <BrandingPreview error={error} venue={venue ?? null} /> : null}
         </div>
       </main>

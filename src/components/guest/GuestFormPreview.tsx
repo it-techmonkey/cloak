@@ -15,11 +15,13 @@ const selectClass =
   "w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-foreground outline-none transition focus:border-foreground/40 focus:ring-2 focus:ring-foreground/8 appearance-none cursor-pointer";
 
 export default function GuestFormPreview({
+  defaultEventId,
   defaultVenueId,
   error,
   eventsByVenue,
   venues,
 }: {
+  defaultEventId?: string;
   defaultVenueId?: string;
   error?: string;
   eventsByVenue: Record<string, PublicEventOption[]>;
@@ -93,7 +95,7 @@ export default function GuestFormPreview({
               Event <span className="font-normal text-muted">(optional)</span>
             </label>
             <div className="relative">
-              <select className={selectClass} defaultValue="" id="event-select" name="event">
+              <select className={selectClass} defaultValue={defaultEventId ?? ""} id="event-select" name="event">
                 <option value="">No specific event</option>
                 {venueEvents.map((event) => (
                   <option key={event.id} value={event.id}>

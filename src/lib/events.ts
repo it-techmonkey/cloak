@@ -11,6 +11,8 @@ export type VenueEvent = {
   endsAt: string | null;
   active: boolean;
   ticketCount: number;
+  venueId: string;
+  venueName: string;
 };
 
 export type PublicEventOption = {
@@ -35,16 +37,26 @@ export async function getVenueEvents(context: AuthorizedContext): Promise<VenueE
   if (venueIds.length === 0) return [];
 
   const supabase = createAdminClient();
-  const { data: events } = await supabase
+  const { data: rawEvents } = await supabase
     .from("events")
-    .select("id, name, event_date, starts_at, ends_at, active")
+    .select("id, name, event_date, starts_at, ends_at, active, venue_id, venues(name)")
     .in("venue_id", venueIds)
     .order("event_date", { ascending: false })
     .limit(100);
 
+  const events = rawEvents as Array<{
+    id: string;
+    name: string;
+    event_date: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    active: boolean;
+    venue_id: string;
+    venues: { name: string } | null;
+  }> | null;
+
   if (!events || events.length === 0) return [];
 
-  // Count tickets per event in a single grouped pass.
   const eventIds = events.map((e) => e.id);
   const { data: tickets } = await supabase
     .from("tickets")
@@ -64,6 +76,8 @@ export async function getVenueEvents(context: AuthorizedContext): Promise<VenueE
     name: e.name,
     startsAt: e.starts_at,
     ticketCount: counts.get(e.id) ?? 0,
+    venueId: e.venue_id,
+    venueName: (e.venues as { name: string } | null)?.name ?? "",
   }));
 }
 

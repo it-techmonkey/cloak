@@ -34,5 +34,12 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         }
       : null;
 
-  return <VenueSignupPage error={getParam(params.error)} step={step} venue={venue} />;
+  return (
+    <VenueSignupPage
+      billingPlan={draft?.billingPlan ?? null}
+      error={getParam(params.error)}
+      step={step}
+      venue={venue}
+    />
+  );
 }

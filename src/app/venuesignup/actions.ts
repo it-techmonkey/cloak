@@ -93,6 +93,11 @@ export async function createVenueSignup(formData: FormData) {
   const venueQuantityRaw = Number(readField(formData, "venueQuantity") || "1");
   const country = readField(formData, "country");
 
+  const singleVenueOnly = existing.billingPlan === "starter" || existing.billingPlan === "per_event";
+  if (singleVenueOnly && venueCount === "multiple") {
+    fail("/venuesignup", "The Starter plan supports one venue only. Upgrade to Professional for multiple venues.");
+  }
+
   if (!contactName) fail("/venuesignup", "Full name is required.");
   if (!contactEmail || !isValidEmail(contactEmail)) {
     fail("/venuesignup", "Please enter a valid email address.");
@@ -289,6 +294,7 @@ export async function finishVenueSignup(formData: FormData) {
       .single();
 
     if (venueError || !venue) {
+      console.error("[finishVenueSignup] venue insert error:", venueError);
       fail("/venuesignup", "We could not create the venue registration. Please try again.");
     }
 

@@ -75,7 +75,14 @@ function VenueBlock({ index, country }: { index: number; country: Country }) {
   );
 }
 
-export default function VenueDetailsPreview({ error }: { error?: string }) {
+export default function VenueDetailsPreview({
+  billingPlan,
+  error,
+}: {
+  billingPlan?: string | null;
+  error?: string;
+}) {
+  const singleVenueOnly = billingPlan === "starter" || billingPlan === "per_event";
   const [venueCount, setVenueCount] = useState<"single" | "multiple">("single");
   const [venueQuantity, setVenueQuantity] = useState(2);
   const [country, setCountry] = useState<Country>("United Kingdom");
@@ -128,29 +135,54 @@ export default function VenueDetailsPreview({ error }: { error?: string }) {
           {/* ── Venue type ──────────────────────────────────────────── */}
           <SectionHeading>Venue type</SectionHeading>
           <div className="col-span-full grid gap-3 sm:grid-cols-2">
-            {(["single", "multiple"] as const).map((v) => (
-              <label
-                key={v}
-                className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition ${
-                  venueCount === v ? "border-foreground bg-zinc-50" : "border-line bg-white hover:bg-zinc-50"
-                }`}
-              >
-                <input
-                  checked={venueCount === v}
-                  className="accent-foreground"
-                  name="venueCountDisplay"
-                  onChange={() => setVenueCount(v)}
-                  type="radio"
-                  value={v}
-                />
-                <div>
-                  <p className="text-sm font-semibold text-foreground capitalize">{v} venue</p>
-                  <p className="text-xs text-muted">
-                    {v === "single" ? "One cloakroom location" : "Two or more locations"}
+            <label
+              className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition ${
+                venueCount === "single" ? "border-foreground bg-zinc-50" : "border-line bg-white hover:bg-zinc-50"
+              }`}
+            >
+              <input
+                checked={venueCount === "single"}
+                className="accent-foreground"
+                name="venueCountDisplay"
+                onChange={() => setVenueCount("single")}
+                type="radio"
+                value="single"
+              />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Single venue</p>
+                <p className="text-xs text-muted">One cloakroom location</p>
+              </div>
+            </label>
+
+            <label
+              className={`flex items-center gap-3 rounded-xl border p-4 transition ${
+                singleVenueOnly
+                  ? "cursor-not-allowed border-line bg-zinc-50 opacity-60"
+                  : venueCount === "multiple"
+                    ? "cursor-pointer border-foreground bg-zinc-50"
+                    : "cursor-pointer border-line bg-white hover:bg-zinc-50"
+              }`}
+            >
+              <input
+                checked={venueCount === "multiple"}
+                className="accent-foreground"
+                disabled={singleVenueOnly}
+                name="venueCountDisplay"
+                onChange={() => !singleVenueOnly && setVenueCount("multiple")}
+                type="radio"
+                value="multiple"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">Multiple venues</p>
+                {singleVenueOnly ? (
+                  <p className="text-xs text-amber-600">
+                    Upgrade to Professional to add multiple venues.
                   </p>
-                </div>
-              </label>
-            ))}
+                ) : (
+                  <p className="text-xs text-muted">Two or more locations</p>
+                )}
+              </div>
+            </label>
           </div>
 
           {venueCount === "multiple" && (

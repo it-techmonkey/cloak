@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
-import { handleScannerAction } from "@/app/venuescanner/actions";
+import { handleScannerAction, searchPendingTickets, type PendingTicketSuggestion } from "@/app/venuescanner/actions";
 import { initialScannerState } from "@/app/venuescanner/types";
 import CameraScanner from "./CameraScanner";
 import { ActivationForm, CheckoutForm, GuestCard } from "./TicketActionForms";
@@ -14,8 +14,11 @@ const FLASH_DURATION_MS = 1500;
 export default function ScannerFrame({ venueId }: { venueId?: string }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, formAction, pending] = useActionState(handleScannerAction, initialScannerState);
   const [flashTone, setFlashTone] = useState<"success" | "error" | null>(null);
+  const [suggestions, setSuggestions] = useState<PendingTicketSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     if (state.status === "success") {
@@ -38,9 +41,38 @@ export default function ScannerFrame({ venueId }: { venueId?: string }) {
 
   function handleCameraDetection(value: string) {
     if (inputRef.current) inputRef.current.value = value;
+    setSuggestions([]);
+    setShowSuggestions(false);
     const fd = new FormData();
     fd.set("_action", "lookup");
     fd.set("lookupValue", value);
+    if (venueId) fd.set("venueId", venueId);
+    startTransition(() => formAction(fd));
+  }
+
+  function handleInputChange(value: string) {
+    if (inputRef.current) inputRef.current.value = value.toUpperCase();
+    const query = value.trim();
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    searchTimerRef.current = setTimeout(async () => {
+      const results = await searchPendingTickets(query, venueId);
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    }, 200);
+  }
+
+  function pickSuggestion(suggestion: PendingTicketSuggestion) {
+    if (inputRef.current) inputRef.current.value = suggestion.publicCode;
+    setSuggestions([]);
+    setShowSuggestions(false);
+    const fd = new FormData();
+    fd.set("_action", "lookup");
+    fd.set("lookupValue", suggestion.publicCode);
     if (venueId) fd.set("venueId", venueId);
     startTransition(() => formAction(fd));
   }
@@ -71,17 +103,34 @@ export default function ScannerFrame({ venueId }: { venueId?: string }) {
         <form action={formAction} className="flex flex-col gap-2 sm:flex-row">
           <input name="_action" type="hidden" value="lookup" />
           {venueId && <input name="venueId" type="hidden" value={venueId} />}
-          <input
-            autoCapitalize="characters"
-            autoComplete="off"
-            className="min-w-0 flex-1 rounded-xl border border-line bg-white px-4 py-3.5 text-base font-mono uppercase text-foreground outline-none placeholder:text-muted placeholder:normal-case placeholder:font-sans placeholder:text-sm focus:border-foreground/30 transition"
-            name="lookupValue"
-            onChange={(e) => {
-              if (inputRef.current) inputRef.current.value = e.target.value.toUpperCase();
-            }}
-            placeholder="Paste QR link or enter CLK-… code"
-            ref={inputRef}
-          />
+          <div className="relative min-w-0 flex-1">
+            <input
+              autoCapitalize="characters"
+              autoComplete="off"
+              className="w-full rounded-xl border border-line bg-white px-4 py-3.5 text-base font-mono uppercase text-foreground outline-none placeholder:text-muted placeholder:normal-case placeholder:font-sans placeholder:text-sm focus:border-foreground/30 transition"
+              name="lookupValue"
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onFocus={(e) => { if (e.target.value.trim().length >= 2 && suggestions.length > 0) setShowSuggestions(true); }}
+              placeholder="Paste QR link or enter CLK-… code"
+              ref={inputRef}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-line bg-white shadow-lg">
+                {suggestions.map((s) => (
+                  <button
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-50"
+                    key={s.id}
+                    onMouseDown={() => pickSuggestion(s)}
+                    type="button"
+                  >
+                    <span className="font-mono text-sm font-semibold text-foreground">{s.publicCode}</span>
+                    <span className="text-sm text-muted">{s.guestName}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             className="rounded-xl bg-foreground px-6 py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
             disabled={pending}

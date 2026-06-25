@@ -6,11 +6,13 @@ import type { PublicEventOption } from "@/lib/events";
 const venueImage = "/images/venue-checkin.png";
 
 export default function GuestCheckInPage({
+  defaultEventId,
   defaultVenueId,
   error,
   eventsByVenue,
   venues,
 }: {
+  defaultEventId?: string;
   defaultVenueId?: string;
   error?: string;
   eventsByVenue: Record<string, PublicEventOption[]>;
@@ -99,7 +101,7 @@ export default function GuestCheckInPage({
               <p className="mt-1.5 text-sm text-muted">Takes ~30 seconds. No app or account needed.</p>
             </div>
 
-            <GuestFormPreview defaultVenueId={defaultVenueId} error={error} eventsByVenue={eventsByVenue} venues={venues} />
+            <GuestFormPreview defaultEventId={defaultEventId} defaultVenueId={defaultVenueId} error={error} eventsByVenue={eventsByVenue} venues={venues} />
 
           </div>
         </div>

@@ -289,7 +289,7 @@ export default function VenueSettingsPage({
           </Panel>
 
           {checkInUrl && venue && (
-            <VenueQrCard checkInUrl={checkInUrl} venueName={venue.name} />
+            <VenueQrCard checkInUrl={checkInUrl} venueId={venue.id} venueName={venue.name} />
           )}
 
           <ExpiryToggleSection venue={venue} />
@@ -397,7 +397,14 @@ export default function VenueSettingsPage({
                       <Label>Email</Label>
                       <input className={input} name="email" placeholder="staff@example.com" required type="email" />
                     </label>
-                    <label className="sm:col-span-2">
+                    <label>
+                      <Label>Role</Label>
+                      <select className={input} name="role">
+                        <option value="staff">Staff — scanner access only</option>
+                        <option value="manager">Manager — full access</option>
+                      </select>
+                    </label>
+                    <label>
                       <Label>Temporary password</Label>
                       <input
                         autoComplete="new-password"

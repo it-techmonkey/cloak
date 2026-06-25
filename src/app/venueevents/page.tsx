@@ -21,5 +21,29 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
 
   const [params, events] = await Promise.all([searchParams, getVenueEvents(guard)]);
 
-  return <VenueEventsPage error={params.error} events={events} message={params.message} />;
+  const managerVenueRoles =
+    guard.status === "authorized"
+      ? guard.venueRoles.filter((r) => r.role === "manager")
+      : [];
+
+  // Build unique venue list from events (already fetched with venue name)
+  const venueMap = new Map<string, string>();
+  events.forEach((e) => venueMap.set(e.venueId, e.venueName));
+  // Ensure all manager venues appear even if they have no events yet
+  managerVenueRoles.forEach((r) => {
+    if (!venueMap.has(r.venueId)) venueMap.set(r.venueId, r.venueId);
+  });
+  const venues = Array.from(venueMap.entries()).map(([id, name]) => ({ id, name }));
+
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://cloakqr.com").replace(/\/$/, "");
+
+  return (
+    <VenueEventsPage
+      error={params.error}
+      events={events}
+      message={params.message}
+      origin={origin}
+      venues={venues}
+    />
+  );
 }

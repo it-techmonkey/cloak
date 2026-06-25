@@ -8,6 +8,11 @@ create policy "venues_select_visible_or_authorized"
   for select
   using (active = true and billing_status in ('trialing', 'active'));
 
+-- Drop the trigger and function that referenced approval_status
+drop trigger if exists venues_prevent_duplicate_pending_venue_submission on public.venues;
+drop trigger if exists venues_prevent_duplicate_pending_submission on public.venues;
+drop function if exists public.prevent_duplicate_pending_venue_submission() cascade;
+
 -- Now drop the approval flow columns
 alter table public.venues
   drop column if exists approval_status,

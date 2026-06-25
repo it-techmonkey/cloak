@@ -5,7 +5,7 @@ import { getVenueDashboardData, normalizeTicketFilter } from "@/lib/venue-dashbo
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ filter?: string; q?: string; venueId?: string }>;
+type SearchParams = Promise<{ filter?: string; q?: string; range?: string; venueId?: string }>;
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const guard = await requireVenueAccess("/venuedashboard");
@@ -23,6 +23,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   const data = await getVenueDashboardData({
     context: guard,
     filter: normalizeTicketFilter(params.filter),
+    range: params.range,
     search: params.q,
   });
 

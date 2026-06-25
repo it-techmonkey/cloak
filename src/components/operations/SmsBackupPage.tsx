@@ -10,8 +10,8 @@ export default function SmsBackupPage({
     <PageShell
       activePath="/smsbackup"
       eyebrow="Operations"
-      title="Phone backup lookup"
-      description="When a guest's phone has died or they've lost their code, find their open ticket by phone number and complete check-in or collection here."
+      title="Guest check-in"
+      description="Create a ticket for a walk-in guest and activate storage at the counter."
       venueRole={venueRole}
     >
       <BackupConsole />

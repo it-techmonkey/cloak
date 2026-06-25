@@ -7,12 +7,15 @@ type StatusTone = "blue" | "green" | "warning" | "danger" | "neutral";
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
 export type VenueTicketListItem = {
+  activatedAt: string | null;
+  collectedAt: string | null;
   createdAt: string;
   guestName: string;
   guestPhone: string;
   id: string;
   itemCount: number;
   itemType: string | null;
+  lastActivityAt: string;
   publicCode: string;
   status: TicketStatus;
   storageLocation: string | null;
@@ -53,9 +56,19 @@ export type UserProfile = {
 
 export type VenueApprovalStatus = "pending" | "approved" | "rejected" | "suspended";
 
+export type ActiveEvent = {
+  id: string;
+  name: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  ticketCount: number;
+};
+
 export type VenueDashboardData = {
+  activeEvents: ActiveEvent[];
   activeFilter: TicketFilter;
   approvalStatus: VenueApprovalStatus;
+  dateRange: DateRange;
   isManager: boolean;
   profile: UserProfile | null;
   queryMessage: string | null;
@@ -68,8 +81,17 @@ export type VenueDashboardData = {
   venueLabel: string;
 };
 
+export type CustomerRow = {
+  name: string;
+  email: string;
+  phone: string;
+  visits: number;
+  lastVisit: string;
+};
+
 export type VenueAnalyticsData = {
   byEvent: Array<{ id: string; name: string; eventDate: string; tickets: number; collected: number }>;
+  customers: CustomerRow[];
   hourlyVolume: Array<{ hour: string; count: number; percent: number }>;
   itemTypes: Array<{ count: number; label: string; percent: number }>;
   stats: Array<{ label: string; value: string; tone: StatusTone }>;
@@ -82,6 +104,7 @@ export type VenueTicketItem = {
   quantity: number;
   notes: string | null;
   collectedAt: string | null;
+  storageLocation: string | null;
 };
 
 export type VenueTicketDetail = VenueTicketListItem & {
@@ -101,11 +124,30 @@ export type VenueTicketDetail = VenueTicketListItem & {
   }>;
 };
 
-export type TicketFilter = "all" | "pending" | "active" | "collected" | "expired";
+export type TicketFilter = "all" | "pending" | "active" | "collected" | "forgotten";
+export type DateRange = "today" | "24h" | "7d" | "1mo" | "all";
 
-// Note: "expired" is intentionally absent here. No ticket row ever holds the
-// "expired" status — expiry is virtual (a pending_activation ticket whose
-// expires_at has passed). It needs a compound filter, applied separately below.
+export function normalizeDateRange(value: string | undefined): DateRange {
+  if (value === "today" || value === "24h" || value === "7d" || value === "1mo") return value;
+  return "all";
+}
+
+function dateRangeCutoff(range: DateRange): string | null {
+  const now = Date.now();
+  if (range === "today") {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t.toISOString();
+  }
+  if (range === "24h") return new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  if (range === "7d") return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+  if (range === "1mo") return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+  return null;
+}
+
+// Note: "forgotten" is intentionally absent here. No ticket row ever holds this
+// status — "forgotten" means a pending_activation ticket whose expires_at has passed.
+// It needs a compound filter, applied separately below.
 const FILTER_TO_STATUS: Partial<Record<TicketFilter, TicketStatus[]>> = {
   active: ["active", "partially_collected"],
   collected: ["collected"],
@@ -115,10 +157,13 @@ const FILTER_TO_STATUS: Partial<Record<TicketFilter, TicketStatus[]>> = {
 function emptyVenueDashboardData(
   activeFilter: TicketFilter = "all",
   search = "",
+  dateRange: DateRange = "all",
 ): VenueDashboardData {
   return {
+    activeEvents: [],
     activeFilter,
     approvalStatus: "pending",
+    dateRange,
     isManager: false,
     queryMessage: null,
     search,
@@ -154,6 +199,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 function emptyAnalyticsData(): VenueAnalyticsData {
   return {
     byEvent: [],
+    customers: [],
     hourlyVolume: [],
     itemTypes: [],
     stats: [
@@ -282,7 +328,7 @@ function getTodayStart() {
 }
 
 export function normalizeTicketFilter(value: string | undefined): TicketFilter {
-  if (value === "pending" || value === "active" || value === "collected" || value === "expired") return value;
+  if (value === "pending" || value === "active" || value === "collected" || value === "forgotten") return value;
   return "all";
 }
 
@@ -306,25 +352,59 @@ export async function getVenueDashboardData({
   context,
   filter,
   search,
+  range,
 }: {
   context: AuthorizedContext;
   filter?: string;
+  range?: string;
   search?: string;
 }): Promise<VenueDashboardData> {
   const activeFilter = normalizeTicketFilter(filter);
   const normalizedSearch = normalizeSearch(search);
+  const activeDateRange = normalizeDateRange(range);
 
-  if (!isSupabaseAdminConfigured()) return emptyVenueDashboardData(activeFilter, normalizedSearch);
+  if (!isSupabaseAdminConfigured()) return emptyVenueDashboardData(activeFilter, normalizedSearch, activeDateRange);
 
   const venueIds = getVenueIds(context);
-  if (venueIds?.length === 0) return emptyVenueDashboardData(activeFilter, normalizedSearch);
+  if (venueIds?.length === 0) return emptyVenueDashboardData(activeFilter, normalizedSearch, activeDateRange);
 
   const supabase = createAdminClient();
   const todayStart = getTodayStart();
-  const [venueMeta, staffList, profileRow] = await Promise.all([
+
+  async function getActiveEvents(): Promise<ActiveEvent[]> {
+    if (!venueIds || venueIds.length === 0) return [];
+    const { data: eventsData } = await supabase
+      .from("events")
+      .select("id, name, starts_at, ends_at")
+      .eq("active", true)
+      .in("venue_id", venueIds)
+      .order("starts_at", { ascending: true });
+    if (!eventsData || eventsData.length === 0) return [];
+
+    const eventIds = eventsData.map((e) => e.id);
+    const { data: ticketRows } = await supabase
+      .from("tickets")
+      .select("event_id")
+      .in("event_id", eventIds);
+    const counts = new Map<string, number>();
+    (ticketRows ?? []).forEach((t) => {
+      if (t.event_id) counts.set(t.event_id, (counts.get(t.event_id) ?? 0) + 1);
+    });
+
+    return eventsData.map((e) => ({
+      id: e.id,
+      name: e.name,
+      startsAt: e.starts_at,
+      endsAt: e.ends_at,
+      ticketCount: counts.get(e.id) ?? 0,
+    }));
+  }
+
+  const [venueMeta, staffList, profileRow, activeEvents] = await Promise.all([
     getVenueMeta(supabase, venueIds),
     isManagerContext(context) ? getStaffList(supabase, venueIds) : Promise.resolve([]),
     supabase.from("profiles").select("id, email, full_name, phone").eq("id", context.userId).maybeSingle(),
+    getActiveEvents(),
   ]);
 
   const scopedCount = () => {
@@ -335,15 +415,22 @@ export async function getVenueDashboardData({
 
   let ticketQuery = supabase
     .from("tickets")
-    .select("id, public_code, guest_name, guest_phone, status, created_at, item_type, item_count, storage_location, venue_id")
+    .select("id, public_code, guest_name, guest_phone, status, created_at, activated_at, collected_at, item_type, item_count, storage_location, venue_id")
     .order("created_at", { ascending: false })
-    .limit(60);
+    .limit(200);
 
   if (venueIds) ticketQuery = ticketQuery.in("venue_id", venueIds);
 
-  if (activeFilter === "expired") {
-    // "Expired" means forgotten: a pending ticket that was never activated
-    // before its expiry passed. Mirror the forgottenCount logic below.
+  // Apply date range — filter on the most-recent activity column
+  const rangeCutoff = dateRangeCutoff(activeDateRange);
+  if (rangeCutoff) {
+    ticketQuery = ticketQuery.or(
+      `collected_at.gte.${rangeCutoff},activated_at.gte.${rangeCutoff},created_at.gte.${rangeCutoff}`,
+    );
+  }
+
+  if (activeFilter === "forgotten") {
+    // "Forgotten" = a pending ticket never activated before its expiry passed.
     ticketQuery = ticketQuery
       .eq("status", "pending_activation")
       .lt("expires_at", new Date().toISOString());
@@ -381,8 +468,10 @@ export async function getVenueDashboardData({
     : null;
 
   return {
+    activeEvents,
     activeFilter,
     approvalStatus: venueMeta.approvalStatus,
+    dateRange: activeDateRange,
     isManager: isManagerContext(context),
     profile,
     queryMessage: venueMeta.queryMessage,
@@ -402,18 +491,23 @@ export async function getVenueDashboardData({
       },
     ],
     tickets:
-      ticketRows.data?.map((t) => ({
-        createdAt: t.created_at,
-        guestName: t.guest_name,
-        guestPhone: t.guest_phone,
-        id: t.id,
-        itemCount: t.item_count,
-        itemType: t.item_type,
-        publicCode: t.public_code,
-        status: t.status,
-        storageLocation: t.storage_location,
-        venueName: venueNames.get(t.venue_id) ?? venueMeta.label,
-      })) ?? [],
+      (ticketRows.data ?? [])
+        .map((t) => ({
+          activatedAt: t.activated_at,
+          collectedAt: t.collected_at,
+          createdAt: t.created_at,
+          guestName: t.guest_name,
+          guestPhone: t.guest_phone,
+          id: t.id,
+          itemCount: t.item_count,
+          itemType: t.item_type,
+          lastActivityAt: t.collected_at ?? t.activated_at ?? t.created_at,
+          publicCode: t.public_code,
+          status: t.status,
+          storageLocation: t.storage_location,
+          venueName: venueNames.get(t.venue_id) ?? venueMeta.label,
+        }))
+        .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime()),
     venue: venueMeta.venue,
     venues: venueMeta.venues,
     venueLabel: venueMeta.label,
@@ -452,7 +546,7 @@ export async function getVenueTicketDetail({
       .order("created_at", { ascending: true }),
     supabase
       .from("ticket_items")
-      .select("id, label, quantity, notes, collected_at")
+      .select("id, label, quantity, notes, collected_at, storage_location")
       .eq("ticket_id", ticket.id)
       .order("added_at", { ascending: true }),
     ticket.event_id
@@ -472,6 +566,7 @@ export async function getVenueTicketDetail({
     id: ticket.id,
     itemCount: ticket.item_count,
     itemDescription: ticket.item_description,
+    lastActivityAt: ticket.collected_at ?? ticket.activated_at ?? ticket.created_at,
     items:
       items.data?.map((i) => ({
         collectedAt: i.collected_at,
@@ -479,6 +574,7 @@ export async function getVenueTicketDetail({
         label: i.label,
         notes: i.notes,
         quantity: i.quantity,
+        storageLocation: i.storage_location ?? null,
       })) ?? [],
     itemType: ticket.item_type,
     publicCode: ticket.public_code,
@@ -508,7 +604,7 @@ export async function getVenueAnalyticsData(context: AuthorizedContext): Promise
 
   let q = supabase
     .from("tickets")
-    .select("id, created_at, activated_at, collected_at, status, item_type, event_id")
+    .select("id, created_at, activated_at, collected_at, status, item_type, event_id, guest_name, guest_email, guest_phone")
     .gte("created_at", since)
     .order("created_at", { ascending: true })
     .limit(500);
@@ -553,8 +649,32 @@ export async function getVenueAnalyticsData(context: AuthorizedContext): Promise
 
   const byEvent = await buildEventBreakdown(supabase, venueIds, tickets);
 
+  // Build deduplicated customer list (keyed by email, fallback phone)
+  const customerMap = new Map<string, { name: string; email: string; phone: string; visits: number; lastVisit: string }>();
+  for (const t of tickets) {
+    const key = (t.guest_email || t.guest_phone || "").toLowerCase();
+    if (!key) continue;
+    const existing = customerMap.get(key);
+    if (existing) {
+      existing.visits += 1;
+      if (t.created_at > existing.lastVisit) existing.lastVisit = t.created_at;
+    } else {
+      customerMap.set(key, {
+        email: t.guest_email ?? "",
+        lastVisit: t.created_at,
+        name: t.guest_name,
+        phone: t.guest_phone,
+        visits: 1,
+      });
+    }
+  }
+  const customers = [...customerMap.values()].sort(
+    (a, b) => new Date(b.lastVisit).getTime() - new Date(a.lastVisit).getTime(),
+  );
+
   return {
     byEvent,
+    customers,
     hourlyVolume: buildHourlyVolume(tickets.map((t) => t.created_at)),
     itemTypes,
     stats: [

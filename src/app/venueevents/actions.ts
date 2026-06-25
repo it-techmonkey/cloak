@@ -30,7 +30,10 @@ export async function createEvent(formData: FormData) {
   if (!name || !eventDate) fail("Event name and date are required.");
 
   const venueIds = managerVenueIds(guard.venueRoles);
-  const venueId = venueIds[0];
+  const requestedVenueId = readField(formData, "venueId");
+  const venueId = requestedVenueId && venueIds.includes(requestedVenueId)
+    ? requestedVenueId
+    : venueIds[0];
   if (!venueId) fail("No venue is associated with your account.");
 
   const supabase = createAdminClient();
@@ -46,6 +49,37 @@ export async function createEvent(formData: FormData) {
 
   revalidatePath("/venueevents");
   redirect("/venueevents?message=Event+created.");
+}
+
+export async function deleteEvent(formData: FormData) {
+  const guard = await requireVenueAccess("/venueevents", ["manager"]);
+  if (guard.status !== "authorized") fail("Sign in as a venue manager to manage events.");
+  if (!isSupabaseAdminConfigured()) fail("Events are temporarily unavailable.");
+
+  const eventId = readField(formData, "eventId");
+  if (!eventId) fail("Missing event.");
+
+  const venueIds = managerVenueIds(guard.venueRoles);
+  const supabase = createAdminClient();
+
+  // Only allow deleting events with no tickets
+  const { count } = await supabase
+    .from("tickets")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId);
+
+  if (count && count > 0) fail("Cannot delete an event that has tickets.");
+
+  const { error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId)
+    .in("venue_id", venueIds);
+
+  if (error) fail("Could not delete the event.");
+
+  revalidatePath("/venueevents");
+  redirect("/venueevents?message=Event+deleted.");
 }
 
 export async function setEventActive(formData: FormData) {

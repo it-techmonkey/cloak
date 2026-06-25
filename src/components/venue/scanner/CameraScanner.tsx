@@ -45,7 +45,6 @@ export default function CameraScanner({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   // Hidden canvas for jsQR frame capture on browsers without BarcodeDetector
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
   function stopCamera() {
     if (frameRef.current) { cancelAnimationFrame(frameRef.current); frameRef.current = null; }
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -180,6 +179,14 @@ export default function CameraScanner({
       stopCamera();
     }
   }
+
+  // Auto-start camera on mount (skip the "Start camera scan" button)
+  useEffect(() => {
+    if (!disabled) {
+      void startCamera();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isActive = status === "scanning" || status === "starting";
 

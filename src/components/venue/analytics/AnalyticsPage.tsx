@@ -1,6 +1,8 @@
-﻿import PageShell from "@/components/shared/PageShell";
+"use client";
+
+import PageShell from "@/components/shared/PageShell";
 import Panel from "@/components/shared/Panel";
-import type { VenueAnalyticsData } from "@/lib/venue-dashboard";
+import type { CustomerRow, VenueAnalyticsData } from "@/lib/venue-dashboard";
 
 type Tone = "green" | "warning" | "danger" | "neutral";
 
@@ -17,6 +19,35 @@ const iconBg: Record<Tone, string> = {
   neutral: "bg-zinc-100 text-zinc-500",
   warning: "bg-amber-50 text-amber-500",
 };
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function exportCsv(customers: CustomerRow[]) {
+  const header = "Name,Email,Phone,Visits,Last Visit";
+  const rows = customers.map((c) =>
+    [
+      `"${c.name.replace(/"/g, '""')}"`,
+      `"${c.email.replace(/"/g, '""')}"`,
+      `"${c.phone.replace(/"/g, '""')}"`,
+      c.visits,
+      fmtDate(c.lastVisit),
+    ].join(","),
+  );
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "customers.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function AnalyticsPage({
   data,
@@ -103,6 +134,59 @@ export default function AnalyticsPage({
           </div>
         </Panel>
       )}
+
+      {/* Customer data table */}
+      <Panel
+        title="Guest data"
+        description="All guests from the last 7 days."
+        action={
+          data.customers.length > 0 ? (
+            <button
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+              onClick={() => exportCsv(data.customers)}
+              type="button"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Export CSV
+            </button>
+          ) : undefined
+        }
+      >
+        {data.customers.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-line bg-zinc-50 px-4 py-8 text-center text-sm text-muted">
+            No guest data yet — appears after tickets are created.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="hidden px-4 py-3 sm:table-cell">Phone</th>
+                  <th className="px-4 py-3 text-right">Visits</th>
+                  <th className="hidden px-4 py-3 text-right sm:table-cell">Last visit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {data.customers.map((c, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3 font-medium text-foreground">{c.name}</td>
+                    <td className="px-4 py-3 text-muted">{c.email || "—"}</td>
+                    <td className="hidden px-4 py-3 text-muted sm:table-cell">{c.phone || "—"}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-foreground">{c.visits}</td>
+                    <td className="hidden px-4 py-3 text-right tabular-nums text-muted sm:table-cell">
+                      {fmtDate(c.lastVisit)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </PageShell>
   );
 }
