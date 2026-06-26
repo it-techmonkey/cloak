@@ -120,6 +120,7 @@ export async function GET(req: NextRequest) {
   };
 
   try {
+    const fixPem = (s: string) => s.replace(/\\n/g, "\n");
     const pass = new PKPass(
       {
         "pass.json": Buffer.from(JSON.stringify(passJson)),
@@ -128,9 +129,9 @@ export async function GET(req: NextRequest) {
         "icon@3x.png": BLANK_PNG,
       },
       {
-        wwdr: process.env.APPLE_WWDR_PEM!,
-        signerCert: process.env.APPLE_PASS_CERT_PEM!,
-        signerKey: process.env.APPLE_PASS_KEY_PEM!,
+        wwdr: fixPem(process.env.APPLE_WWDR_PEM!),
+        signerCert: fixPem(process.env.APPLE_PASS_CERT_PEM!),
+        signerKey: fixPem(process.env.APPLE_PASS_KEY_PEM!),
       },
     );
 

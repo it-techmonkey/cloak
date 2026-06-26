@@ -40,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+AppleWWDRCAG4.cer
+AuthKey_2Z9J36KPBA.p8
+apple-env-vars.txt
+pass-cert.csr
+pass.cer
+scripts/gen-apple-secret.mjs
+scripts/grant-wallet-access.mjs

@@ -179,30 +179,50 @@ APPLE_WWDR_PEM="-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----"
 ## Part 3 — Google Wallet
 
 Generates a signed JWT "Save to Wallet" link. Free to use, but requires a
-Google Wallet issuer account.
+Google Wallet issuer account and service account credentials from Google Cloud.
 
-### Step 1 — Get an Issuer ID
+### Step 1 — Create a Google Wallet issuer account
 
 1. Go to the [Google Wallet Console](https://pay.google.com/business/console).
-2. Accept the terms of service.
-3. Your **Issuer ID** is the long number shown on the dashboard
+2. Accept the terms of service (Wallet T&Cs).
+3. Complete your **Business Profile** with:
+   - Public business name (e.g. "Cloak QR")
+   - Merchant category code (MCC): `7299` (miscellaneous personal services)
+   - Business website and support URL
+   - Legal entity info if required
+4. Your **Issuer ID** is the long number shown on the dashboard
    (e.g. `3388000000022xxxxxx`).
 
 ```env
 GOOGLE_WALLET_ISSUER_ID=3388000000022xxxxxx
 ```
 
-### Step 2 — Enable the API and create a service account
+### Step 2 — Enable the Google Wallet API and create a service account
 
-1. In [Google Cloud Console](https://console.cloud.google.com), enable the
-   **Google Wallet API**.
-2. Go to IAM & Admin → Service Accounts → **Create Service Account**.
-3. Create a JSON key for that account and download it.
-4. From the JSON file:
+You'll need [Google Cloud Console](https://console.cloud.google.com) for this step.
+
+> **Important:** If your Google Cloud account is part of an **organisation**, the
+> org policy `iam.disableServiceAccountKeyCreation` may block JSON key creation.
+> In that case, **create a new Google Cloud project using a personal Google account**
+> (not your org account) at [console.cloud.google.com](https://console.cloud.google.com).
+> Personal accounts don't have this org restriction.
+
+1. Create or select a Google Cloud project (**personal account recommended**).
+2. Go to **APIs & Services → Library**, search for **Google Wallet API**, and enable it.
+3. Go to **IAM & Admin → Service Accounts → Create Service Account**:
+   - Name: `cloak-wallet-backend`
+   - Click through the role steps (no special roles needed)
+4. Open the service account, go to the **Keys** tab → **Add key → Create new key → JSON**.
+5. Download the JSON file. From it, extract:
    - `client_email` → `GOOGLE_SERVICE_ACCOUNT_EMAIL`
    - `private_key` → `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
-5. In the **Google Wallet Console → Users**, grant that service account email
-   access to your issuer account.
+
+### Step 3 — Grant the service account access in Google Wallet Console
+
+1. Go back to the [Google Wallet Console](https://pay.google.com/business/console).
+2. Navigate to **Users** (in the left sidebar).
+3. Click **Add user** and paste the service account email from Step 2.
+4. Grant it **Admin** access.
 
 ```env
 GOOGLE_SERVICE_ACCOUNT_EMAIL=wallet@your-project.iam.gserviceaccount.com
@@ -212,25 +232,30 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE...\n-----E
 The Google route already handles `\n`-escaped keys, so the literal `\n` form
 works here without any extra steps.
 
-### Step 3 — Create the pass class (one-time, required)
+### Step 4 — Create the pass class (one-time, required)
 
 > This is the most common reason Google Wallet saves silently fail.
 
-The route references a class with ID `cloak_ticket`
+The backend creates passes referencing a class with ID `cloak_ticket`
 (`${issuerId}.cloak_ticket`) but does **not** create it automatically. You must
 create this `GenericClass` once before any guest can save a pass.
 
-**Option A — Google Wallet Console**
+**Option A — Google Wallet Console (recommended)**
 
-Go to Google Wallet Console → Pass classes → Create a new **Generic** class
-with ID `cloak_ticket`.
+1. Go to the [Google Wallet Console](https://pay.google.com/business/console).
+2. Go to **Pass classes** in the left sidebar.
+3. Click **+ Create pass class** and select **Generic**.
+4. Fill in:
+   - **Class ID**: `cloak_ticket`
+   - **Issuer name**: `Cloak` or your business name
+5. Save. The full class ID will be `YOUR_ISSUER_ID.cloak_ticket`.
 
-**Option B — API call (one-time)**
+**Option B — API call (if you prefer the CLI)**
 
 ```bash
 curl -X POST \
   "https://walletobjects.googleapis.com/walletobjects/v1/genericClass" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
   -H "Content-Type: application/json" \
   -d '{
     "id": "YOUR_ISSUER_ID.cloak_ticket",
@@ -239,13 +264,31 @@ curl -X POST \
   }'
 ```
 
-### Verifying Google Wallet
+### Step 5 — Request publishing access (demo mode → production)
 
-- The "Add to Google Wallet" button appears on a ticket page only when all
-  three Google vars are set.
-- Clicking it should redirect to `pay.google.com/gp/v/save/...`.
-- If the redirect returns a 404 or "class not found" error, the pass class was
-  not created (Step 3 above).
+In **demo mode**, you can save passes but they won't display to real users on
+`pay.google.com`. When ready to go live:
+
+1. In the [Google Wallet Console](https://pay.google.com/business/console),
+   go to **Manage → Google Wallet API**.
+2. Click the **Validate** tab.
+3. Click **Request publishing access**.
+4. Describe your use case (see the guide at the top of this session for the text).
+5. Google reviews in 2–5 business days and either approves or asks questions.
+6. Once approved, your passes are live on `pay.google.com` — **you cannot go
+   back to demo mode**.
+
+### Testing Google Wallet
+
+**In demo mode:**
+- The "Add to Google Wallet" button appears on a ticket page only when all three Google vars are set.
+- Clicking it opens a preview; you can save to a test wallet or see the pass details.
+- You can test extensively in demo before requesting publishing access.
+
+**If you get errors:**
+- **404 or "class not found"**: The pass class `cloak_ticket` was not created (Step 4 above).
+- **Auth error**: The service account email was not added to Users in the Google Wallet Console (Step 3).
+- **500 error**: Check that the service account key (private_key) has no extra escaping — it should be a raw PEM string or `\n`-escaped.
 
 ---
 

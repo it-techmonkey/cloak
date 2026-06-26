@@ -82,10 +82,13 @@ export async function GET(req: NextRequest) {
     hexBackgroundColor: "#18181b",
   };
 
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
+  const origin = siteUrl.startsWith("http") ? new URL(siteUrl).origin : "http://localhost:3000";
+
   const payload = {
     iss: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!,
     aud: "google",
-    origins: [],
+    origins: [origin],
     typ: "savetowallet",
     payload: {
       genericObjects: [genericObject],
@@ -99,8 +102,19 @@ export async function GET(req: NextRequest) {
     algorithm: "RS256",
   });
 
-  const saveUrl = `https://pay.google.com/gp/v/save/${token_jwt}`;
+  // Debug mode: show the decoded JWT payload Google will receive
+  if (searchParams.get("debug") === "1") {
+    return NextResponse.json({
+      classId,
+      objectId,
+      issuerId,
+      origin,
+      iss: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      payload,
+      saveUrl: `https://pay.google.com/gp/v/save/${token_jwt}`,
+    });
+  }
 
-  // Redirect directly to the Google Wallet save page
+  const saveUrl = `https://pay.google.com/gp/v/save/${token_jwt}`;
   return NextResponse.redirect(saveUrl, { status: 302 });
 }
