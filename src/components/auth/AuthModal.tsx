@@ -218,9 +218,7 @@ export default function AuthModal({
         <div className="p-6">
           {/* Header */}
           <div className="mb-5">
-            <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-foreground text-xs font-bold text-white">
-              CL
-            </div>
+            <img alt="Cloak" className="mb-3 h-9 w-auto" src="/images/cloak-logo.png" />
             <h2 className="text-lg font-semibold text-foreground">
               {mode === "signin" ? "Welcome back" : "Create account"}
             </h2>
