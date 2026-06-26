@@ -2,6 +2,7 @@ import AuthStatePage from "@/components/auth/AuthStatePage";
 import VenueEventsPage from "@/components/venue/events/VenueEventsPage";
 import { requireVenueAccess } from "@/lib/auth/guards";
 import { getVenueEvents } from "@/lib/events";
+import { createAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +30,18 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   // Build unique venue list from events (already fetched with venue name)
   const venueMap = new Map<string, string>();
   events.forEach((e) => venueMap.set(e.venueId, e.venueName));
-  // Ensure all manager venues appear even if they have no events yet
-  managerVenueRoles.forEach((r) => {
-    if (!venueMap.has(r.venueId)) venueMap.set(r.venueId, r.venueId);
-  });
+
+  // Ensure all manager venues appear even if they have no events yet — fetch real names
+  const missingIds = managerVenueRoles.map((r) => r.venueId).filter((id) => !venueMap.has(id));
+  if (missingIds.length > 0 && isSupabaseAdminConfigured()) {
+    const { data } = await createAdminClient()
+      .from("venues")
+      .select("id, name")
+      .in("id", missingIds);
+    (data ?? []).forEach((v) => venueMap.set(v.id, v.name));
+    missingIds.filter((id) => !venueMap.has(id)).forEach((id) => venueMap.set(id, id));
+  }
+
   const venues = Array.from(venueMap.entries()).map(([id, name]) => ({ id, name }));
 
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://cloakqr.com").replace(/\/$/, "");

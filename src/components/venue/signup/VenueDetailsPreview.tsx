@@ -21,9 +21,10 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-function VenueBlock({ index, country }: { index: number; country: Country }) {
+function VenueBlock({ index, defaultCountry }: { index: number; defaultCountry: Country }) {
   const prefix = `venue_${index}`;
   const label = index === 0 ? "Primary venue" : `Venue ${index + 1}`;
+  const [country, setCountry] = useState<Country>(defaultCountry);
 
   return (
     <div className="col-span-full rounded-xl border border-line bg-zinc-50 p-5">
@@ -43,6 +44,20 @@ function VenueBlock({ index, country }: { index: number; country: Country }) {
             <input className={inputClass} min={0} name={`${prefix}_bagCapacity`} placeholder="80" required type="number" />
           </label>
         </div>
+
+        <label className="col-span-full flex flex-col gap-2 text-sm font-medium text-foreground">
+          Country
+          <select
+            className={`${inputClass} max-w-xs`}
+            onChange={(e) => setCountry(e.target.value as Country)}
+            value={country}
+          >
+            {COUNTRIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        <input name={`${prefix}_country`} type="hidden" value={country} />
 
         {country === "United Kingdom" ? (
           <UkAddressFields prefix={prefix} />
@@ -85,20 +100,20 @@ export default function VenueDetailsPreview({
   const singleVenueOnly = billingPlan === "starter" || billingPlan === "per_event";
   const [venueCount, setVenueCount] = useState<"single" | "multiple">("single");
   const [venueQuantity, setVenueQuantity] = useState(2);
-  const [country, setCountry] = useState<Country>("United Kingdom");
-  const [detectedCountry, setDetectedCountry] = useState(false);
+  const [detectedCountry, setDetectedCountry] = useState<Country>("United Kingdom");
+  const [countryDetected, setCountryDetected] = useState(false);
 
-  // Auto-detect country via IP on mount
+  // Auto-detect country via IP on mount to set default for venue blocks
   useEffect(() => {
-    if (detectedCountry) return;
+    if (countryDetected) return;
     fetch("https://ipapi.co/json/")
       .then((r) => r.json())
       .then((d) => {
-        if (d?.country_name === "United Arab Emirates") setCountry("United Arab Emirates");
-        setDetectedCountry(true);
+        if (d?.country_name === "United Arab Emirates") setDetectedCountry("United Arab Emirates");
+        setCountryDetected(true);
       })
-      .catch(() => setDetectedCountry(true));
-  }, [detectedCountry]);
+      .catch(() => setCountryDetected(true));
+  }, [countryDetected]);
 
   const numVenues = venueCount === "single" ? 1 : Math.min(Math.max(venueQuantity, 2), 3);
   const isOverEnterprise = venueCount === "multiple" && venueQuantity > 3;
@@ -108,7 +123,6 @@ export default function VenueDetailsPreview({
       {/* Hidden fields */}
       <input name="venueCount" type="hidden" value={venueCount} />
       <input name="venueQuantity" type="hidden" value={venueQuantity} />
-      <input name="country" type="hidden" value={country} />
 
       <div className="rounded-2xl border border-line bg-white p-6 shadow-sm">
         <div className="grid gap-5 sm:grid-cols-2">
@@ -226,30 +240,10 @@ export default function VenueDetailsPreview({
             </div>
           )}
 
-          {/* ── Country ─────────────────────────────────────────────── */}
-          <SectionHeading>Country</SectionHeading>
-          <div className="col-span-full flex items-end gap-4">
-            <label className="flex flex-col gap-2 text-sm font-medium text-foreground">
-              Venue country
-              <select
-                className={`${inputClass} max-w-xs`}
-                onChange={(e) => setCountry(e.target.value as Country)}
-                value={country}
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </label>
-            {!detectedCountry && (
-              <p className="pb-3 text-xs text-muted">Detecting your location…</p>
-            )}
-          </div>
-
           {/* ── Venue blocks ────────────────────────────────────────── */}
           <SectionHeading>Venue information</SectionHeading>
           {!isOverEnterprise && Array.from({ length: numVenues }).map((_, i) => (
-            <VenueBlock country={country} index={i} key={i} />
+            <VenueBlock defaultCountry={detectedCountry} index={i} key={i} />
           ))}
         </div>
       </div>

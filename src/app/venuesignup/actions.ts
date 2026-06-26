@@ -91,7 +91,6 @@ export async function createVenueSignup(formData: FormData) {
   const contactPhone = readField(formData, "contactPhone");
   const venueCount = readField(formData, "venueCount") as "single" | "multiple";
   const venueQuantityRaw = Number(readField(formData, "venueQuantity") || "1");
-  const country = readField(formData, "country");
 
   const singleVenueOnly = existing.billingPlan === "starter" || existing.billingPlan === "per_event";
   if (singleVenueOnly && venueCount === "multiple") {
@@ -122,6 +121,7 @@ export async function createVenueSignup(formData: FormData) {
 
     const latRaw = readField(formData, `${p}_latitude`);
     const lngRaw = readField(formData, `${p}_longitude`);
+    const venueCountry = readField(formData, `${p}_country`) || "United Kingdom";
 
     venues.push({
       venueName,
@@ -131,7 +131,7 @@ export async function createVenueSignup(formData: FormData) {
       addressLine2: readField(formData, `${p}_addressLine2`),
       city: readField(formData, `${p}_city`),
       postalCode: readField(formData, `${p}_postalCode`).toUpperCase(),
-      country,
+      country: venueCountry,
       latitude: latRaw ? Number(latRaw) : null,
       longitude: lngRaw ? Number(lngRaw) : null,
       extraDevices: Number(readField(formData, `${p}_extraDevices`) || "0"),
@@ -146,7 +146,6 @@ export async function createVenueSignup(formData: FormData) {
     contactPhone,
     venueCount,
     venueQuantity: venueQuantityRaw,
-    country,
     venues,
   });
 
