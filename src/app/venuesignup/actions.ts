@@ -212,35 +212,28 @@ export async function finishVenueSignup(formData: FormData) {
   const supabase = createAdminClient();
   const primaryVenue = draft.venues[0];
 
-  let manager = await findUserByEmail(draft.contactEmail);
-
-  if (!manager) {
-    const { data, error } = await supabase.auth.admin.createUser({
-      email: draft.contactEmail,
-      email_confirm: true,
-      password,
-      user_metadata: {
-        full_name: draft.contactName || `${primaryVenue.venueName} Manager`,
-      },
-    });
-
-    if (error || !data.user) {
-      fail("/venuesignup", "We could not create the manager account. Please try again.");
-    }
-
-    manager = data.user;
-  } else {
-    const { error } = await supabase.auth.admin.updateUserById(manager.id, {
-      password,
-      user_metadata: {
-        full_name: manager.user_metadata?.full_name ?? draft.contactName ?? `${primaryVenue.venueName} Manager`,
-      },
-    });
-
-    if (error) {
-      fail("/venuesignup", "We could not update the manager account. Please try again.");
-    }
+  const existing = await findUserByEmail(draft.contactEmail);
+  if (existing) {
+    fail(
+      "/venuesignup",
+      "An account with this email address already exists. Please sign in to your existing account to manage your venues.",
+    );
   }
+
+  const { data, error } = await supabase.auth.admin.createUser({
+    email: draft.contactEmail,
+    email_confirm: true,
+    password,
+    user_metadata: {
+      full_name: draft.contactName || `${primaryVenue.venueName} Manager`,
+    },
+  });
+
+  if (error || !data.user) {
+    fail("/venuesignup", "We could not create the manager account. Please try again.");
+  }
+
+  const manager = data.user;
 
   const { data: existingProfile } = await supabase
     .from("profiles")

@@ -20,6 +20,7 @@ const dateRangeOptions: Array<{ label: string; value: DateRange }> = [
   { label: "7 days", value: "7d" },
   { label: "1 month", value: "1mo" },
   { label: "All time", value: "all" },
+  { label: "Custom", value: "custom" },
 ];
 
 function statusLabel(status: VenueTicketListItem["status"]) {
@@ -67,6 +68,8 @@ export default function TodayTickets({
   const [search, setSearch] = useState(data.search);
   const [activeFilter, setActiveFilter] = useState<TicketFilter>(data.activeFilter);
   const [dateRange, setDateRange] = useState<DateRange>(data.dateRange);
+  const [customFrom, setCustomFrom] = useState(data.customFrom);
+  const [customTo, setCustomTo] = useState(data.customTo);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -78,11 +81,15 @@ export default function TodayTickets({
       if (activeFilter !== "all") p.set("filter", activeFilter);
       if (search) p.set("q", search);
       if (dateRange !== "all") p.set("range", dateRange);
+      if (dateRange === "custom") {
+        if (customFrom) p.set("from", customFrom);
+        if (customTo) p.set("to", customTo);
+      }
       router.replace(`/venuedashboard?${p.toString()}`, { scroll: false });
     }, 300);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, activeFilter, dateRange]);
+  }, [search, activeFilter, dateRange, customFrom, customTo]);
 
   function changeFilter(f: TicketFilter) {
     setActiveFilter(f);
@@ -145,7 +152,7 @@ export default function TodayTickets({
       </div>
 
       {/* Date range row */}
-      <div className="mb-4 flex gap-1 overflow-x-auto pb-1">
+      <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
         {dateRangeOptions.map((r) => (
           <button
             className={`shrink-0 rounded-lg px-2.5 py-1 text-xs transition ${
@@ -161,6 +168,42 @@ export default function TodayTickets({
           </button>
         ))}
       </div>
+
+      {/* Custom date range inputs */}
+      {dateRange === "custom" && (
+        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-line bg-zinc-50 px-3 py-2.5">
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+            From
+            <input
+              className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-foreground/30"
+              max={customTo || undefined}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              type="date"
+              value={customFrom}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+            To
+            <input
+              className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-foreground/30"
+              min={customFrom || undefined}
+              onChange={(e) => setCustomTo(e.target.value)}
+              type="date"
+              value={customTo}
+            />
+          </label>
+          {(customFrom || customTo) && (
+            <button
+              className="pb-1.5 text-xs font-medium text-muted hover:text-foreground"
+              onClick={() => { setCustomFrom(""); setCustomTo(""); }}
+              type="button"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+      {dateRange !== "custom" && <div className="mb-2" />}
 
       {/* Ticket list */}
       {filteredTickets.length === 0 ? (
@@ -213,11 +256,7 @@ function TicketRow({
           <StatusPill tone={statusTone(ticket.status)}>{statusLabel(ticket.status)}</StatusPill>
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
-          {ticket.itemType ? (
-            <span>
-              {ticket.itemCount > 1 ? `${ticket.itemCount}× ` : ""}{ticket.itemType}
-            </span>
-          ) : null}
+          {ticket.itemSummary ? <span>{ticket.itemSummary}</span> : null}
           <span className="font-mono">{ticket.publicCode}</span>
           <span>{ticket.guestPhone}</span>
           <span>{fmtDate(ticket.lastActivityAt)}</span>

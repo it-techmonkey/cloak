@@ -144,7 +144,7 @@ export async function handleScannerAction(
     if (!lookupValue) {
       return { message: "Enter a QR link, QR token, or fallback code.", status: "error" };
     }
-    const ticket = await lookupTicketByInput(context.supabase, lookupValue);
+    const ticket = await lookupTicketByInput(context.supabase, lookupValue, venueId);
     return performLookup(context, lookupValue, ticket, venueId);
   } catch {
     return {

@@ -92,6 +92,12 @@ export function normalizeLookup(value: string) {
     return { column: "public_code" as const, value: trimmed.toUpperCase() };
   }
 
+  // Last 6 characters of a CLK code (the unique suffix, e.g. "74E9F1").
+  // Staff can type just the suffix instead of the full "CLK-YYYYMMDD-" prefix.
+  if (/^[A-Z0-9]{6}$/i.test(trimmed)) {
+    return { column: "public_code_suffix" as const, value: trimmed.toUpperCase() };
+  }
+
   return { column: "qr_token_hash" as const, value: hashTicketToken(trimmed) };
 }
 
@@ -156,9 +162,23 @@ export async function loadTicketById(supabase: SupabaseAdmin, ticketId: string) 
   return data;
 }
 
-export async function lookupTicketByInput(supabase: SupabaseAdmin, value: string) {
+export async function lookupTicketByInput(
+  supabase: SupabaseAdmin,
+  value: string,
+  venueId?: string,
+) {
   const lookup = normalizeLookup(value);
   if (!lookup) return null;
+
+  // Suffix search — match the last 6 chars of public_code, scoped to this venue
+  // to avoid cross-venue collisions on the short suffix.
+  if (lookup.column === "public_code_suffix") {
+    let query = supabase.from("tickets").select("*").ilike("public_code", `%${lookup.value}`);
+    if (venueId) query = query.eq("venue_id", venueId);
+    const { data, error } = await query.limit(2);
+    if (error || !data || data.length !== 1) return null; // ambiguous or none → no match
+    return data[0];
+  }
 
   const { data, error } = await supabase
     .from("tickets")

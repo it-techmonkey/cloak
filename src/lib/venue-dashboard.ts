@@ -15,6 +15,7 @@ export type VenueTicketListItem = {
   id: string;
   itemCount: number;
   itemType: string | null;
+  itemSummary: string;
   lastActivityAt: string;
   publicCode: string;
   status: TicketStatus;
@@ -69,6 +70,8 @@ export type VenueDashboardData = {
   activeFilter: TicketFilter;
   approvalStatus: VenueApprovalStatus;
   dateRange: DateRange;
+  customFrom: string;
+  customTo: string;
   isManager: boolean;
   profile: UserProfile | null;
   queryMessage: string | null;
@@ -103,6 +106,7 @@ export type VenueTicketItem = {
   label: string;
   quantity: number;
   notes: string | null;
+  addedAt: string;
   collectedAt: string | null;
   storageLocation: string | null;
 };
@@ -125,24 +129,78 @@ export type VenueTicketDetail = VenueTicketListItem & {
 };
 
 export type TicketFilter = "all" | "pending" | "active" | "collected" | "forgotten";
-export type DateRange = "today" | "24h" | "7d" | "1mo" | "all";
+export type DateRange = "today" | "24h" | "7d" | "1mo" | "all" | "custom";
 
 export function normalizeDateRange(value: string | undefined): DateRange {
-  if (value === "today" || value === "24h" || value === "7d" || value === "1mo") return value;
+  if (
+    value === "today" || value === "24h" || value === "7d" ||
+    value === "1mo" || value === "custom"
+  ) return value;
   return "all";
 }
 
-function dateRangeCutoff(range: DateRange): string | null {
+// Parse a YYYY-MM-DD string into a Date, or null if invalid.
+function parseYmd(value: string | undefined): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// Returns the [from, to] ISO bounds for a range. `to` is null for open-ended.
+function dateRangeBounds(
+  range: DateRange,
+  from?: string,
+  to?: string,
+): { gte: string | null; lte: string | null } {
   const now = Date.now();
   if (range === "today") {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
-    return t.toISOString();
+    return { gte: t.toISOString(), lte: null };
   }
-  if (range === "24h") return new Date(now - 24 * 60 * 60 * 1000).toISOString();
-  if (range === "7d") return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
-  if (range === "1mo") return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
-  return null;
+  if (range === "24h") return { gte: new Date(now - 24 * 60 * 60 * 1000).toISOString(), lte: null };
+  if (range === "7d") return { gte: new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString(), lte: null };
+  if (range === "1mo") return { gte: new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString(), lte: null };
+  if (range === "custom") {
+    const fromDate = parseYmd(from);
+    const toDate = parseYmd(to);
+    if (toDate) toDate.setHours(23, 59, 59, 999); // inclusive end of day
+    return {
+      gte: fromDate ? fromDate.toISOString() : null,
+      lte: toDate ? toDate.toISOString() : null,
+    };
+  }
+  return { gte: null, lte: null };
+}
+
+// Build a human label like "2× Bag, 1× Jacket" from a ticket's item rows.
+// Groups by label, sums quantities, and truncates long lists to keep the
+// dashboard row compact. Falls back to the legacy item_type/count when a
+// ticket has no item rows (older tickets predating per-item storage).
+function buildItemSummary(
+  rows: Array<{ label: string; quantity: number }>,
+  fallbackType: string | null,
+  fallbackCount: number,
+): string {
+  if (rows.length === 0) {
+    if (!fallbackType) return fallbackCount > 0 ? `${fallbackCount} items` : "";
+    return fallbackCount > 1 ? `${fallbackCount}× ${fallbackType}` : fallbackType;
+  }
+
+  const byLabel = new Map<string, number>();
+  for (const r of rows) {
+    byLabel.set(r.label, (byLabel.get(r.label) ?? 0) + (r.quantity || 1));
+  }
+
+  const parts = [...byLabel.entries()].map(([label, qty]) =>
+    qty > 1 ? `${qty}× ${label}` : label,
+  );
+
+  // Keep the row short — show first two groups, then "+N more".
+  if (parts.length > 2) {
+    return `${parts.slice(0, 2).join(", ")} +${parts.length - 2} more`;
+  }
+  return parts.join(", ");
 }
 
 // Note: "forgotten" is intentionally absent here. No ticket row ever holds this
@@ -158,12 +216,16 @@ function emptyVenueDashboardData(
   activeFilter: TicketFilter = "all",
   search = "",
   dateRange: DateRange = "all",
+  customFrom = "",
+  customTo = "",
 ): VenueDashboardData {
   return {
     activeEvents: [],
     activeFilter,
     approvalStatus: "pending",
     dateRange,
+    customFrom,
+    customTo,
     isManager: false,
     queryMessage: null,
     search,
@@ -353,20 +415,26 @@ export async function getVenueDashboardData({
   filter,
   search,
   range,
+  from,
+  to,
 }: {
   context: AuthorizedContext;
   filter?: string;
   range?: string;
   search?: string;
+  from?: string;
+  to?: string;
 }): Promise<VenueDashboardData> {
   const activeFilter = normalizeTicketFilter(filter);
   const normalizedSearch = normalizeSearch(search);
   const activeDateRange = normalizeDateRange(range);
+  const customFrom = activeDateRange === "custom" ? (from ?? "") : "";
+  const customTo = activeDateRange === "custom" ? (to ?? "") : "";
 
-  if (!isSupabaseAdminConfigured()) return emptyVenueDashboardData(activeFilter, normalizedSearch, activeDateRange);
+  if (!isSupabaseAdminConfigured()) return emptyVenueDashboardData(activeFilter, normalizedSearch, activeDateRange, customFrom, customTo);
 
   const venueIds = getVenueIds(context);
-  if (venueIds?.length === 0) return emptyVenueDashboardData(activeFilter, normalizedSearch, activeDateRange);
+  if (venueIds?.length === 0) return emptyVenueDashboardData(activeFilter, normalizedSearch, activeDateRange, customFrom, customTo);
 
   const supabase = createAdminClient();
   const todayStart = getTodayStart();
@@ -422,11 +490,15 @@ export async function getVenueDashboardData({
   if (venueIds) ticketQuery = ticketQuery.in("venue_id", venueIds);
 
   // Apply date range — filter on the most-recent activity column
-  const rangeCutoff = dateRangeCutoff(activeDateRange);
-  if (rangeCutoff) {
+  const { gte: rangeGte, lte: rangeLte } = dateRangeBounds(activeDateRange, customFrom, customTo);
+  if (rangeGte) {
     ticketQuery = ticketQuery.or(
-      `collected_at.gte.${rangeCutoff},activated_at.gte.${rangeCutoff},created_at.gte.${rangeCutoff}`,
+      `collected_at.gte.${rangeGte},activated_at.gte.${rangeGte},created_at.gte.${rangeGte}`,
     );
+  }
+  if (rangeLte) {
+    // Upper bound: the ticket's earliest timestamp (created_at) must be on/before the end date.
+    ticketQuery = ticketQuery.lte("created_at", rangeLte);
   }
 
   if (activeFilter === "forgotten") {
@@ -458,10 +530,30 @@ export async function getVenueDashboardData({
 
   const usedCapacity = storedCount.count ?? 0;
   const utilization = venueMeta.capacity > 0 ? Math.round((usedCapacity / venueMeta.capacity) * 100) : 0;
-  const venueNames = await getVenueNameMap(
-    supabase,
-    [...new Set(ticketRows.data?.map((t) => t.venue_id) ?? [])],
-  );
+
+  const listedTicketIds = (ticketRows.data ?? []).map((t) => t.id);
+  const [venueNames, itemsByTicket] = await Promise.all([
+    getVenueNameMap(
+      supabase,
+      [...new Set(ticketRows.data?.map((t) => t.venue_id) ?? [])],
+    ),
+    // Per-item breakdown for the listed tickets, so the list shows e.g.
+    // "2× Bag, 1× Jacket" instead of a wrong "3× Bag".
+    (async () => {
+      const map = new Map<string, Array<{ label: string; quantity: number }>>();
+      if (listedTicketIds.length === 0) return map;
+      const { data } = await supabase
+        .from("ticket_items")
+        .select("ticket_id, label, quantity")
+        .in("ticket_id", listedTicketIds);
+      for (const row of data ?? []) {
+        const arr = map.get(row.ticket_id) ?? [];
+        arr.push({ label: row.label, quantity: row.quantity });
+        map.set(row.ticket_id, arr);
+      }
+      return map;
+    })(),
+  ]);
 
   const profile = profileRow.data
     ? { email: profileRow.data.email, fullName: profileRow.data.full_name, id: profileRow.data.id, phone: profileRow.data.phone }
@@ -472,6 +564,8 @@ export async function getVenueDashboardData({
     activeFilter,
     approvalStatus: venueMeta.approvalStatus,
     dateRange: activeDateRange,
+    customFrom,
+    customTo,
     isManager: isManagerContext(context),
     profile,
     queryMessage: venueMeta.queryMessage,
@@ -501,6 +595,7 @@ export async function getVenueDashboardData({
           id: t.id,
           itemCount: t.item_count,
           itemType: t.item_type,
+          itemSummary: buildItemSummary(itemsByTicket.get(t.id) ?? [], t.item_type, t.item_count),
           lastActivityAt: t.collected_at ?? t.activated_at ?? t.created_at,
           publicCode: t.public_code,
           status: t.status,
@@ -546,7 +641,7 @@ export async function getVenueTicketDetail({
       .order("created_at", { ascending: true }),
     supabase
       .from("ticket_items")
-      .select("id, label, quantity, notes, collected_at, storage_location")
+      .select("id, label, quantity, notes, added_at, collected_at, storage_location")
       .eq("ticket_id", ticket.id)
       .order("added_at", { ascending: true }),
     ticket.event_id
@@ -566,9 +661,15 @@ export async function getVenueTicketDetail({
     id: ticket.id,
     itemCount: ticket.item_count,
     itemDescription: ticket.item_description,
+    itemSummary: buildItemSummary(
+      (items.data ?? []).map((i) => ({ label: i.label, quantity: i.quantity })),
+      ticket.item_type,
+      ticket.item_count,
+    ),
     lastActivityAt: ticket.collected_at ?? ticket.activated_at ?? ticket.created_at,
     items:
       items.data?.map((i) => ({
+        addedAt: i.added_at,
         collectedAt: i.collected_at,
         id: i.id,
         label: i.label,

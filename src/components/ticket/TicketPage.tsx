@@ -11,6 +11,7 @@ import type { PublicTicketItem } from "@/lib/tickets";
 const VenueLocationMap = dynamic(() => import("./VenueLocationMap"), { ssr: false });
 
 export type TicketView = {
+  createdAt: string;
   dbId: string;
   email: string;
   expiresAt: string;

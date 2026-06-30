@@ -85,29 +85,7 @@ export default function VenueTicketDetailPage({ ticket }: { ticket: VenueTicketD
 
         <Panel title="Timeline">
           <div className="space-y-4">
-            <TimelineItem label="Ticket created" tone="blue" value={formatDate(ticket.createdAt)} />
-            {ticket.activatedAt && (
-              <TimelineItem label="Activated" tone="green" value={formatDate(ticket.activatedAt)} />
-            )}
-            {ticket.scans.length === 0 && !ticket.activatedAt ? (
-              <TimelineItem
-                label="Awaiting scan"
-                tone="neutral"
-                value="No counter scan has been recorded yet."
-              />
-            ) : (
-              ticket.scans.map((scan) => (
-                <TimelineItem
-                  key={scan.id}
-                  label={`${scan.scanType} ${scan.result}`}
-                  tone={scan.result === "accepted" ? "green" : "danger"}
-                  value={scan.reason ? `${formatDate(scan.createdAt)} - ${scan.reason}` : formatDate(scan.createdAt)}
-                />
-              ))
-            )}
-            {ticket.collectedAt && (
-              <TimelineItem label="Collected" tone="green" value={formatDate(ticket.collectedAt)} />
-            )}
+            <TicketTimeline ticket={ticket} />
           </div>
         </Panel>
       </div>
@@ -252,6 +230,47 @@ function ItemsPanel({
   );
 }
 
+function TicketTimeline({ ticket }: { ticket: VenueTicketDetail }) {
+  const isForgotten =
+    ticket.status === "pending_activation" && new Date(ticket.expiresAt) < new Date();
+  const isMultiItem = ticket.items.length > 1;
+
+  // Build a flat list of timeline events sorted by timestamp
+  type TimelineEvent = { at: string; label: string; tone: StatusTone };
+  const events: TimelineEvent[] = [];
+
+  events.push({ at: ticket.createdAt, label: "Ticket created", tone: "blue" });
+
+  if (ticket.activatedAt) {
+    events.push({ at: ticket.activatedAt, label: "Activated and stored", tone: "green" });
+  }
+
+  for (const item of ticket.items) {
+    if (item.collectedAt) {
+      events.push({ at: item.collectedAt, label: `${item.label} returned`, tone: "green" });
+    } else if (isForgotten) {
+      // Use expires_at as the forgotten timestamp since there's no per-item forgotten_at
+      events.push({ at: ticket.expiresAt, label: `${item.label} forgotten`, tone: "danger" });
+    }
+  }
+
+  // "All items collected" — only for multi-item tickets, deduplicated from individual events
+  if (isMultiItem && ticket.collectedAt) {
+    events.push({ at: ticket.collectedAt, label: "All items collected", tone: "green" });
+  }
+
+  // Sort chronologically
+  events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  return (
+    <>
+      {events.map((e, i) => (
+        <TimelineItem key={`${e.at}-${i}`} label={e.label} tone={e.tone} value={formatDate(e.at)} />
+      ))}
+    </>
+  );
+}
+
 function TimelineItem({
   label,
   tone,
@@ -274,7 +293,7 @@ function TimelineItem({
     <div className="flex gap-3">
       <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${dotClass}`} />
       <div>
-        <p className="text-sm font-semibold capitalize text-foreground">{label.replace("_", " ")}</p>
+        <p className="text-sm font-semibold text-foreground">{label}</p>
         <p className="mt-1 text-sm text-muted">{value}</p>
       </div>
     </div>

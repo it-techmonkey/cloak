@@ -20,6 +20,7 @@ export type PublicTicketItem = {
 };
 
 export type PublicTicket = {
+  createdAt: string;
   dbId: string;
   email: string;
   expiresAt: string;
@@ -92,7 +93,7 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
   const { data, error } = await supabase
     .from("tickets")
     .select(
-      "id, public_code, guest_email, guest_name, guest_phone, status, venue_id, expires_at, item_type, item_count, item_description, storage_location",
+      "id, public_code, guest_email, guest_name, guest_phone, status, venue_id, created_at, expires_at, item_type, item_count, item_description, storage_location",
     )
     .eq(column, value)
     .maybeSingle();
@@ -119,6 +120,7 @@ async function getTicketByColumn(column: "public_code" | "qr_token_hash", value:
   return {
     status: status === "expired" ? ("expired" as const) : ("found" as const),
     ticket: {
+      createdAt: data.created_at,
       dbId: data.id,
       email: data.guest_email ?? "",
       expiresAt: data.expires_at,

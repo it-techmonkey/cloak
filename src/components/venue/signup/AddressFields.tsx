@@ -13,6 +13,13 @@ const inputClass =
 // UK postcode regex
 const UK_PC_RE = /\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/i;
 
+// "LONDON" → "London", "milton keynes" → "Milton Keynes"
+function titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // ── MapTiler geocoding ─────────────────────────────────────────────────────────
 
 type MTFeature = {
@@ -116,17 +123,42 @@ function parseFeature(f: MTFeature): ParsedAddr {
 
 // ── postcodes.io — enrich missing postcode/city from coords ────────────────────
 
-async function enrichFromCoords(lat: number, lng: number): Promise<{ city: string; postcode: string } | null> {
-  try {
-    const res = await fetch(`https://api.postcodes.io/postcodes?lon=${lng}&lat=${lat}&limit=1`);
-    if (!res.ok) return null;
-    const { result } = await res.json();
-    const r = result?.[0];
-    if (!r) return null;
-    return { city: r.post_town ?? r.admin_district ?? "", postcode: r.postcode ?? "" };
-  } catch {
-    return null;
+// Pick the best "city" from a postcodes.io result.
+// post_town is null for many London postcodes (admin_district = borough), so
+// fall back to "London" when nhs_ha says so, then admin_district, then region.
+function cityFromPostcodeResult(r: {
+  post_town?: string | null;
+  admin_district?: string | null;
+  nhs_ha?: string | null;
+  region?: string | null;
+}): string {
+  if (r.post_town) return r.post_town;
+  if (r.nhs_ha === "London") return "London";
+  return r.admin_district ?? r.region ?? "";
+}
+
+async function enrichFromCoords(
+  lat: number,
+  lng: number,
+): Promise<{ city: string; postcode: string } | null> {
+  // Try a tight reverse lookup first, then widen the radius. POIs like
+  // airports and parks have no postcode points nearby, so the default 100m
+  // search returns nothing — 2km reliably finds the surrounding town.
+  for (const radius of [100, 2000, 10000]) {
+    try {
+      const res = await fetch(
+        `https://api.postcodes.io/postcodes?lon=${lng}&lat=${lat}&limit=1&radius=${radius}`,
+      );
+      if (!res.ok) continue;
+      const { result } = await res.json();
+      const r = result?.[0];
+      if (!r) continue;
+      return { city: cityFromPostcodeResult(r), postcode: r.postcode ?? "" };
+    } catch {
+      // try next radius
+    }
   }
+  return null;
 }
 
 // ── Search dropdown ────────────────────────────────────────────────────────────
@@ -188,14 +220,13 @@ export function UkAddressFields({ prefix = "" }: { prefix?: string }) {
 
   // Single source of truth — fills every field + moves the pin
   async function applyParsed(parsed: ParsedAddr) {
-    // If MapTiler missed postcode or city, backfill from postcodes.io
     let { city, postcode } = parsed;
-    if (!postcode || !city) {
-      const enriched = await enrichFromCoords(parsed.lat, parsed.lng);
-      if (enriched) {
-        postcode = postcode || enriched.postcode;
-        city = city || enriched.city;
-      }
+    // Always enrich from postcodes.io — its post_town/admin_district is more
+    // reliable than MapTiler's context hierarchy for UK cities.
+    const enriched = await enrichFromCoords(parsed.lat, parsed.lng);
+    if (enriched) {
+      postcode = postcode || enriched.postcode;
+      if (enriched.city) city = titleCase(enriched.city);
     }
     setAddr({ line1: parsed.line1, line2: parsed.line2, city, postcode });
     setPinCoords({ lat: parsed.lat, lng: parsed.lng });
@@ -235,10 +266,10 @@ export function UkAddressFields({ prefix = "" }: { prefix?: string }) {
     if (parsed) {
       void applyParsed(parsed);
     } else {
-      // No street feature found — at least fill postcode/city
       const enriched = await enrichFromCoords(c.lat, c.lng);
       if (enriched) {
-        setAddr((a) => ({ ...a, postcode: enriched.postcode || a.postcode, city: enriched.city || a.city }));
+        const city = enriched.city ? titleCase(enriched.city) : "";
+        setAddr((a) => ({ ...a, postcode: enriched.postcode || a.postcode, city: city || a.city }));
       }
       setPinCoords(c);
     }
